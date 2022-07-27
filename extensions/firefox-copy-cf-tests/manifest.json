@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "firefox-copy-cf-tests",
+  "name": "firefox-copy-codeforces-tests",
   "version": "1.0",
   "content_scripts": [
     {
@@ -9,7 +9,7 @@
         "https://*.codeforces.com/*"
       ],
       "js": [
-        "firefox-copy-cf-tests.js"
+        "firefox-copy-codeforces-tests.js"
       ]
     }
   ]

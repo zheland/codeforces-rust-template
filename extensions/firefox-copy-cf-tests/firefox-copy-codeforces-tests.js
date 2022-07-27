@@ -1,12 +1,20 @@
 /*
-about:debugging#/runtime/this-firefox
+  https://developer.mozilla.org/ru/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension
+  about:debugging#/runtime/this-firefox
 */
+
 (() => {
   let menu_list = document.querySelector(".second-level-menu-list");
   let sample_test = document.querySelector(".sample-test");
   let sample_tests = document.querySelector(".sample-tests");
-  let sample_test_title = sample_tests && sample_tests.querySelector(".section-title");
-  if (menu_list === null || sample_test === null || sample_tests === null || sample_test_title === null) {
+  let sample_test_title =
+    sample_tests && sample_tests.querySelector(".section-title");
+  if (
+    menu_list === null ||
+    sample_test === null ||
+    sample_tests === null ||
+    sample_test_title === null
+  ) {
     return;
   }
 
@@ -34,11 +42,8 @@ about:debugging#/runtime/this-firefox
   sample_test_title.appendChild(a2);
 
   let handler = () => {
-    let children = [...sample_test.childNodes].map((node) =>
-      node
-        .querySelector("pre")
-        .innerText
-        .replace(/\n*$/, "")
+    let children = [...sample_test.childNodes].map(
+      (node) => node.querySelector("pre").innerText.replace(/\n*$/, "")
       /*
       node
         .querySelector("pre")

@@ -4,15 +4,13 @@ set -e
 
 rm -rf target/debug || true
 rm -rf target/release || true
-bash build.sh
+cargo build
+cargo test --features libtests
 
-TARGET="online"
-DIRS=("Z")
+TARGET="problems"
+DIRS=("z1")
 
 mkdir -p $TARGET
 for dir in "${DIRS[@]}"; do
-    rm -rf $TARGET/$dir
-    rsync -aP . $TARGET/$dir --exclude='.git/' --exclude='target/rls/' --exclude='drafts/'
+    rsync -aP template $TARGET/$dir --delete
 done
-
-node clearlibs.js

@@ -4,21 +4,11 @@ set -e
 
 rm -rf target/debug || true
 rm -rf target/release || true
-bash build.sh
+cargo build --package template --features libtests
+cargo test --package template --features libtests
 
-TARGET="online"
-DIRS=("A" "B" "C" "D" "E" "F" "G" "H")
+PACKAGES=("a1" "a2" "b1" "b2" "c1" "c2" "d1" "d2" "e1" "e2" "f1" "f2" "g1" "g2" "h1" "h2")
 
-for dir in "${DIRS[@]}"; do
-    if [[ -d "$TARGET/$dir" ]]; then
-        echo "$TARGET/$dir exists."
-        exit 1
-    fi
+for package in "${PACKAGES[@]}"; do
+    cp src/template.rs src/$package.rs
 done
-
-mkdir -p $TARGET
-for dir in "${DIRS[@]}"; do
-    rsync -aP . $TARGET/$dir --exclude='.git/' --exclude='target/rls/'
-done
-
-node clearlibs.js
