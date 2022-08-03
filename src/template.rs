@@ -33,7 +33,7 @@ use core::cell::RefCell;
 use core::cmp::Ordering::{Equal, Greater, Less};
 use core::cmp::{max, min};
 use core::convert::Infallible;
-use core::fmt::{Debug, Display};
+use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use core::iter::{empty, once, repeat};
 use core::marker::PhantomData;
 use core::mem::{replace, swap, take};
@@ -51,9 +51,9 @@ use crate::tests::{test_with_examples, test_with_interactor, ChannelReader, Chan
 pub fn problem<I: ReaderExt + WriterExt>(io: &mut I) {
     let a: i32 = io.re();
     let b: i32 = io.re();
-    io.wrln(a);
-    io.wrln(b);
-    io.wrln(a + b);
+    io.li(a);
+    io.li(b);
+    io.li(a + b);
     [1, 2].sort()
 }
 
@@ -80,8 +80,8 @@ pub struct Preset {}
 
 #[allow(unused_variables)]
 pub fn interactor<I: ReaderExt + WriterExt>(io: &mut I, preset: Preset) {
-    io.wrln(1i32);
-    io.wrln(2i32);
+    io.li(1i32);
+    io.li(2i32);
     io.fl();
     let a: i32 = io.re();
     let b: i32 = io.re();
@@ -92,11 +92,25 @@ pub fn interactor<I: ReaderExt + WriterExt>(io: &mut I, preset: Preset) {
 }
 
 /*
+    map1, map2, map3, map4, map5
+    filter1, filter2, filter3, ...
+    swap, swap1, swap2, swap3, ...
+    rev, ...
+    sort, ...
+    first, ...
+    second, ...
+    third, ...
+
+    .jo() -> JoinedIter, JoinedTuple
+    .wo() -> SeparatedIter, SeparatedTuple
+    .li() -> SeparatedIter, SeparatedTuple
+    .sep(",") -> SeparatedIter, SeparatedTuple
+
     d! { exec-on-debug }
     Ascii<T = Vec<u8>>
     Dec<T = Vec<u8>>
     Io::{re}
-    Io::{wr, ln, fl, wrln, wrlnfl, wr2, ask, ans}
+    Io::{wo, ln, fl, wrln, wrlnfl, wr2, ask, ans}
 */
 
 // ========
@@ -122,463 +136,787 @@ macro_rules! d {
     ( $($arg:tt)* ) => ( if cfg!(debug_assertions) { $($arg)* } )
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Ascii<T = Vec<u8>>(pub T);
+// ========
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct AsciiWord<T = Vec<u8>>(pub T);
+use io::*;
+mod io {
+    use std::io::{stdin, stdout, BufReader, BufWriter, Stdin, Stdout};
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Dec<T = Vec<u8>>(pub T);
+    use crate::{LineReader, WordWriter};
 
-#[derive(Clone, Debug)]
-pub struct Io<R, W> {
-    pub reader: WordReader<R>,
-    pub writer: WordWriter<W>,
-}
-
-impl<R, W> Io<R, W> {
-    pub fn new(reader: R, writer: W) -> Self {
-        Self {
-            reader: WordReader::new(reader),
-            writer: WordWriter::new(writer),
-        }
-    }
-}
-
-impl Io<BufReader<Stdin>, BufWriter<Stdout>> {
-    pub fn from_stdio() -> Self {
-        let reader = WordReader::new(BufReader::new(stdin()));
-        let writer = WordWriter::new(BufWriter::new(stdout()));
-        Self { reader, writer }
-    }
-}
-
-pub trait ReaderExt {
-    fn re<'a, T: Readable<'a>>(&'a mut self) -> T;
-}
-
-pub trait WriterExt {
-    fn wr<T: Writable>(&mut self, value: T);
-
-    fn jo<T: Writable>(&mut self, value: T);
-
-    fn ln(&mut self);
-
-    fn fl(&mut self);
-
-    fn wrln<T: Writable>(&mut self, value: T) {
-        self.wr(value);
-        self.ln();
+    #[derive(Clone, Debug)]
+    pub struct Io<R, W> {
+        pub reader: LineReader<R>,
+        pub writer: WordWriter<W>,
     }
 
-    fn joln<T: Writable>(&mut self, value: T) {
-        self.jo(value);
-        self.ln();
-    }
-
-    fn lnfl(&mut self) {
-        self.ln();
-        self.fl();
-    }
-
-    fn wrlnfl<T: Writable>(&mut self, value: T) {
-        self.wr(value);
-        self.ln();
-        self.fl();
-    }
-
-    fn wr2<T: Writable>(&mut self, value: T) -> &mut Self {
-        self.wr(value);
-        self
-    }
-
-    fn jo2<T: Writable>(&mut self, value: T) -> &mut Self {
-        self.jo(value);
-        self
-    }
-
-    fn ln2(&mut self) -> &mut Self {
-        self.ln();
-        self
-    }
-
-    fn fl2(&mut self) -> &mut Self {
-        self.fl();
-        self
-    }
-
-    fn wrln2<T: Writable>(&mut self, value: T) -> &mut Self {
-        self.wrln(value);
-        self
-    }
-
-    fn joln2<T: Writable>(&mut self, value: T) -> &mut Self {
-        self.joln(value);
-        self
-    }
-
-    fn lnfl2(&mut self) -> &mut Self {
-        self.lnfl();
-        self
-    }
-
-    fn wrlnfl2<T: Writable>(&mut self, value: T) -> &mut Self {
-        self.wrlnfl(value);
-        self
-    }
-
-    fn ask(&mut self) {
-        self.wr('?');
-    }
-
-    fn ans(&mut self) {
-        self.wr('!');
-    }
-}
-
-impl<R: BufRead> ReaderExt for WordReader<R> {
-    fn re<'a, T: Readable<'a>>(&'a mut self) -> T {
-        T::read(self)
-    }
-}
-
-impl<W: Write> WriterExt for WordWriter<W> {
-    fn wr<T: Writable>(&mut self, value: T) {
-        value.write(self);
-    }
-
-    fn jo<T: Writable>(&mut self, value: T) {
-        let mut writer = CharWriter::new(&mut self.writer);
-        value.write(&mut writer);
-        self.is_seperator_needed = true;
-    }
-
-    fn ln(&mut self) {
-        self.write_ln().unwrap();
-    }
-
-    fn fl(&mut self) {
-        self.flush().unwrap();
-    }
-}
-
-impl<R: BufRead, W> ReaderExt for Io<R, W> {
-    fn re<'a, T: Readable<'a>>(&'a mut self) -> T {
-        self.reader.re()
-    }
-}
-
-impl<R, W: Write> WriterExt for Io<R, W> {
-    fn wr<T: Writable>(&mut self, value: T) {
-        self.writer.wr(value);
-    }
-
-    fn jo<T: Writable>(&mut self, value: T) {
-        self.writer.jo(value);
-    }
-
-    fn ln(&mut self) {
-        self.writer.ln();
-    }
-
-    fn fl(&mut self) {
-        self.writer.fl();
-    }
-}
-
-#[allow(single_use_lifetimes)]
-pub trait Readable<'a>: Sized {
-    fn read<R: Reader>(reader: &'a mut R) -> Self;
-}
-
-pub trait Writable {
-    fn write<W: Writer>(&self, writer: &mut W);
-}
-
-pub trait Reader {
-    fn goto_word(&mut self) -> IoResult<()>;
-    fn read_word(&mut self) -> IoResult<&str>;
-    fn read_char(&mut self) -> IoResult<char>;
-    fn read_ascii_char(&mut self) -> IoResult<u8>;
-    fn read_ascii_chars<const N: usize>(&mut self) -> IoResult<[u8; N]>;
-}
-
-pub trait Writer {
-    fn write_word<T: Display>(&mut self, value: T) -> IoResult<()>;
-    fn start_word_chars(&mut self) -> IoResult<()>;
-    fn write_word_chars<T: Display>(&mut self, value: T) -> IoResult<()>;
-}
-
-#[derive(Clone, Debug)]
-pub struct WordReader<R> {
-    reader: R,
-    line: String,
-    offset: usize,
-}
-
-#[derive(Clone, Debug)]
-pub struct WordWriter<W> {
-    writer: W,
-    is_seperator_needed: bool,
-}
-
-#[derive(Clone, Debug)]
-pub struct CharWriter<W> {
-    writer: W,
-}
-
-impl<R> WordReader<R> {
-    pub fn new(reader: R) -> Self {
-        Self {
-            reader,
-            line: String::new(),
-            offset: 0,
-        }
-    }
-
-    pub fn as_reader(&self) -> &R {
-        &self.reader
-    }
-
-    pub fn into_reader(self) -> R {
-        self.reader
-    }
-}
-
-impl<R: BufRead> Reader for WordReader<R> {
-    fn goto_word(&mut self) -> IoResult<()> {
-        loop {
-            if self.offset >= self.line.len() {
-                self.line.clear();
-                let len = self.reader.read_line(&mut self.line)?;
-                if len == 0 {
-                    return Err(IoError::from(IoErrorKind::UnexpectedEof));
-                }
-                self.offset = 0;
-            } else if self.line.as_bytes()[self.offset].is_ascii_whitespace() {
-                self.offset += 1;
-            } else {
-                return Ok(());
+    impl<R, W> Io<R, W> {
+        pub fn new(reader: R, writer: W) -> Self {
+            Self {
+                reader: LineReader::new(reader),
+                writer: WordWriter::new(writer),
             }
         }
     }
 
-    #[track_caller]
-    fn read_word(&mut self) -> IoResult<&str> {
-        self.goto_word()?;
-        let line = self.line.as_bytes();
-        let start = self.offset;
-        let mut end = start + 1;
-        while end < self.line.len() && !line[end].is_ascii_whitespace() {
-            end += 1;
+    impl Io<BufReader<Stdin>, BufWriter<Stdout>> {
+        pub fn from_stdio() -> Self {
+            let reader = LineReader::new(BufReader::new(stdin()));
+            let writer = WordWriter::new(BufWriter::new(stdout()));
+            Self { reader, writer }
         }
-        self.offset = end + 1;
-        let word = unsafe { std::str::from_utf8_unchecked(&line[start..end]) };
-        Ok(word)
-    }
-
-    #[track_caller]
-    fn read_char(&mut self) -> IoResult<char> {
-        self.goto_word()?;
-        let line = self.line.as_bytes();
-        let ch = line[self.offset] as char;
-        self.offset += 1;
-        Ok(ch)
-    }
-
-    #[track_caller]
-    fn read_ascii_char(&mut self) -> IoResult<u8> {
-        self.goto_word()?;
-        let line = self.line.as_bytes();
-        let ch = line[self.offset];
-        self.offset += 1;
-        Ok(ch)
-    }
-
-    #[track_caller]
-    fn read_ascii_chars<const N: usize>(&mut self) -> IoResult<[u8; N]> {
-        self.goto_word()?;
-        let line = self.line.as_bytes();
-        let chars = line[self.offset..self.offset + N].try_into().unwrap();
-        self.offset += N;
-        Ok(chars)
-    }
-}
-
-impl<W> WordWriter<W> {
-    pub fn new(writer: W) -> Self {
-        Self {
-            writer,
-            is_seperator_needed: false,
-        }
-    }
-
-    pub fn as_writer(&self) -> &W {
-        &self.writer
-    }
-
-    pub fn into_writer(self) -> W {
-        self.writer
-    }
-}
-
-impl<W> CharWriter<W> {
-    pub fn new(writer: W) -> Self {
-        Self { writer }
-    }
-
-    pub fn as_writer(&self) -> &W {
-        &self.writer
-    }
-
-    pub fn into_writer(self) -> W {
-        self.writer
-    }
-}
-
-impl<R: Write> Writer for WordWriter<R> {
-    fn write_word<T: Display>(&mut self, value: T) -> IoResult<()> {
-        if self.is_seperator_needed {
-            write!(self.writer, " {}", value)?;
-        } else {
-            write!(self.writer, "{}", value)?;
-            self.is_seperator_needed = true;
-        }
-        Ok(())
-    }
-
-    fn start_word_chars(&mut self) -> IoResult<()> {
-        if self.is_seperator_needed {
-            write!(self.writer, " ")?;
-        } else {
-            self.is_seperator_needed = true;
-        }
-        Ok(())
-    }
-
-    fn write_word_chars<T: Display>(&mut self, value: T) -> IoResult<()> {
-        write!(self.writer, "{}", value)?;
-        Ok(())
-    }
-}
-
-impl<R: Write> Writer for CharWriter<R> {
-    fn write_word<T: Display>(&mut self, value: T) -> IoResult<()> {
-        write!(self.writer, "{}", value)?;
-        Ok(())
-    }
-
-    fn start_word_chars(&mut self) -> IoResult<()> {
-        Ok(())
-    }
-
-    fn write_word_chars<T: Display>(&mut self, value: T) -> IoResult<()> {
-        write!(self.writer, "{}", value)?;
-        Ok(())
-    }
-}
-
-impl<R: Write> WordWriter<R> {
-    pub fn write_ln(&mut self) -> IoResult<()> {
-        writeln!(self.writer)?;
-        self.is_seperator_needed = false;
-        Ok(())
-    }
-
-    pub fn flush(&mut self) -> IoResult<()> {
-        self.writer.flush()
     }
 }
 
 // ========
 
-impl<'a> Readable<'a> for &'a str {
-    fn read<R: Reader>(reader: &'a mut R) -> Self {
-        reader.read_word().unwrap()
+use reader::*;
+mod reader {
+    use std::io::Result as IoResult;
+
+    use crate::StrExt;
+
+    pub trait Reader {
+        fn get_line(&self) -> &[u8];
+        fn skip_line(&mut self) -> IoResult<()>;
+        fn read_until<F: Fn(&[u8]) -> Option<usize>>(&mut self, offset_fn: F) -> IoResult<&[u8]>;
+        fn read_chars<const N: usize>(&mut self) -> Option<[u8; N]>;
+
+        fn goto_word(&mut self) -> IoResult<()> {
+            let _: &[u8] = self.read_until(|line| line.word_start_offset())?;
+            Ok(())
+        }
     }
 }
 
-impl Writable for &str {
-    fn write<W: Writer>(&self, writer: &mut W) {
-        writer.write_word(self).unwrap();
+// ========
+
+use reader_ext::*;
+mod reader_ext {
+    use std::io::BufRead;
+
+    use crate::{Io, Readable};
+
+    pub trait ReaderExt {
+        fn re<'a, T: Readable<'a>>(&'a mut self) -> T;
+    }
+
+    impl<R: BufRead, W> ReaderExt for Io<R, W> {
+        fn re<'a, T: Readable<'a>>(&'a mut self) -> T {
+            self.reader.re()
+        }
     }
 }
 
-impl<'a> Readable<'a> for String {
-    fn read<R: Reader>(reader: &'a mut R) -> Self {
-        reader.read_word().unwrap().to_owned()
+// ========
+
+use writer_ext::*;
+mod writer_ext {
+    use std::io::Write;
+
+    use crate::{Io, Writable};
+
+    pub trait WriterExt {
+        fn jo<T: Writable>(&mut self, value: T);
+        fn wo<T: Writable>(&mut self, value: T);
+        fn ln(&mut self);
+        fn fl(&mut self);
+
+        fn ask(&mut self) {
+            self.wo('?');
+        }
+
+        fn ans(&mut self) {
+            self.wo('!');
+        }
+
+        fn li<T: Writable>(&mut self, value: T) {
+            self.wo(value);
+            self.ln();
+        }
+
+        fn jo2<T: Writable>(&mut self, value: T) -> &mut Self {
+            self.jo(value);
+            self
+        }
+
+        fn wo2<T: Writable>(&mut self, value: T) -> &mut Self {
+            self.wo(value);
+            self
+        }
+
+        fn ln2(&mut self) -> &mut Self {
+            self.ln();
+            self
+        }
+
+        fn li2<T: Writable>(&mut self, value: T) -> &mut Self {
+            self.li(value);
+            self
+        }
+
+        fn ask2<T: Writable>(&mut self) -> &mut Self {
+            self.ask();
+            self
+        }
+
+        fn ans2(&mut self) -> &mut Self {
+            self.ans();
+            self
+        }
+    }
+
+    impl<R, W: Write> WriterExt for Io<R, W> {
+        fn jo<T: Writable>(&mut self, value: T) {
+            self.writer.jo(value);
+        }
+
+        fn wo<T: Writable>(&mut self, value: T) {
+            self.writer.wo(value);
+        }
+
+        fn ln(&mut self) {
+            self.writer.ln();
+        }
+
+        fn fl(&mut self) {
+            self.writer.fl();
+        }
     }
 }
 
-impl Writable for String {
-    fn write<W: Writer>(&self, writer: &mut W) {
-        writer.write_word(self).unwrap();
+// ========
+
+use line_reader::*;
+mod line_reader {
+    use std::io::{BufRead, Error as IoError, ErrorKind as IoErrorKind, Result as IoResult};
+
+    use crate::{Readable, Reader, ReaderExt, RemainingBytes};
+
+    #[derive(Clone, Debug)]
+    pub struct LineReader<R> {
+        reader: R,
+        line: RemainingBytes,
     }
-}
 
-impl<'a> Readable<'a> for char {
-    fn read<R: Reader>(reader: &'a mut R) -> Self {
-        reader.read_char().unwrap().to_owned()
-    }
-}
-
-impl Writable for char {
-    fn write<W: Writer>(&self, writer: &mut W) {
-        writer.write_word_chars(self).unwrap();
-    }
-}
-
-macro_rules! def {
-    ( $( $ty:ty ),* $(,)? ) => {
-        $(
-            #[allow(single_use_lifetimes)]
-            impl<'a> Readable<'a> for $ty {
-                #[track_caller]
-                fn read<R: Reader>(reader: &'a mut R) -> Self {
-                    FromStr::from_str(reader.read_word().unwrap()).unwrap()
-                }
-            }
-
-            impl Writable for $ty {
-                #[track_caller]
-                fn write<W: Writer>(&self, writer: &mut W) {
-                    writer.write_word(self).unwrap();
-                }
-            }
-        )*
-    };
-}
-def! {
-    u8, u16, u32, u64, u128, usize,
-    i8, i16, i32, i64, i128, isize,
-    bool, f32, f64,
-}
-
-macro_rules! def {
-    ( $($field:tt: $type:ident),* ) => {
-        def!(@impl ()( $($field: $type),* ));
-    };
-    ( @impl ( $($field:tt: $type:ident),* ) ) => {
-        #[allow(single_use_lifetimes)]
-        impl< 'a, $($type),* > Readable<'a> for ( $($type,)* )
-        where
-            $($type: 'static + for<'b> Readable<'b>,)*
-        {
-            #[track_caller]
-            fn read<R: Reader>(reader: &'a mut R) -> Self {
-                ( $($type::read(reader),)* )
+    impl<R> LineReader<R> {
+        pub fn new(reader: R) -> Self {
+            Self {
+                reader,
+                line: RemainingBytes::new(),
             }
         }
 
+        pub fn as_reader(&self) -> &R {
+            &self.reader
+        }
+
+        pub fn into_reader(self) -> R {
+            self.reader
+        }
+    }
+
+    impl<R: BufRead> Reader for LineReader<R> {
+        fn get_line(&self) -> &[u8] {
+            self.line.as_bytes()
+        }
+
+        fn skip_line(&mut self) -> IoResult<()> {
+            let mut line = String::new();
+            let len = self.reader.read_line(&mut line)?;
+            if len == 0 {
+                return Err(IoError::from(IoErrorKind::UnexpectedEof));
+            }
+            self.line = RemainingBytes::from(line);
+
+            Ok(())
+        }
+
+        fn read_until<F: Fn(&[u8]) -> Option<usize>>(&mut self, offset_fn: F) -> IoResult<&[u8]> {
+            loop {
+                let len = offset_fn(self.line.as_bytes());
+                match len {
+                    Some(len) => return Ok(self.line.take(len)),
+                    None => self.skip_line()?,
+                }
+            }
+        }
+
+        fn read_chars<const N: usize>(&mut self) -> Option<[u8; N]> {
+            let len = self.line.as_bytes().len();
+            if len >= N {
+                Some(self.line.take_array())
+            } else {
+                None
+            }
+        }
+    }
+
+    impl<R: BufRead> ReaderExt for LineReader<R> {
+        fn re<'a, T: Readable<'a>>(&'a mut self) -> T {
+            T::read(self)
+        }
+    }
+}
+
+// ========
+
+use word_writer::*;
+mod word_writer {
+    use std::io::Write;
+
+    use crate::{Writable, WriterExt};
+
+    #[derive(Clone, Debug)]
+    pub struct WordWriter<W> {
+        writer: W,
+        is_seperator_needed: bool,
+    }
+
+    impl<W> WordWriter<W> {
+        pub fn new(writer: W) -> Self {
+            Self {
+                writer,
+                is_seperator_needed: false,
+            }
+        }
+
+        pub fn as_writer(&self) -> &W {
+            &self.writer
+        }
+
+        pub fn into_writer(self) -> W {
+            self.writer
+        }
+    }
+
+    impl<W: Write> WriterExt for WordWriter<W> {
+        fn jo<T: Writable>(&mut self, value: T) {
+            value.write(&mut self.writer);
+            self.is_seperator_needed = true;
+        }
+
+        fn wo<T: Writable>(&mut self, value: T) {
+            if self.is_seperator_needed {
+                write!(self.writer, " ").unwrap();
+            }
+            value.write(&mut self.writer);
+            self.is_seperator_needed = true;
+        }
+
+        fn ln(&mut self) {
+            write!(self.writer, "\n").unwrap();
+            self.is_seperator_needed = false;
+        }
+
+        fn fl(&mut self) {
+            self.writer.flush().unwrap()
+        }
+    }
+}
+
+// ========
+
+use readable::*;
+mod readable {
+    use core::str::{from_utf8, FromStr};
+
+    use crate::{Reader, SliceWord, Word};
+
+    #[allow(single_use_lifetimes)]
+    pub trait Readable<'a>: Sized {
+        fn read<R: Reader>(reader: &'a mut R) -> Self;
+    }
+
+    macro_rules! def {
+        ( $( $ty:ty ),* $(,)? ) => {
+            $(
+                #[allow(single_use_lifetimes)]
+                impl<'a> Readable<'a> for $ty {
+                    #[track_caller]
+                    fn read<R: Reader>(reader: &'a mut R) -> Self {
+                        let word = SliceWord::read(reader);
+                        FromStr::from_str(from_utf8(word.0).unwrap()).unwrap()
+                    }
+                }
+            )*
+        };
+    }
+    def! {
+        u8, u16, u32, u64, u128, usize,
+        i8, i16, i32, i64, i128, isize,
+        bool, f32, f64,
+    }
+
+    macro_rules! def {
+        ( $($field:tt: $type:ident),* ) => {
+            def!(@impl ());
+            def!(@impl ()( $($field: $type),* ));
+        };
+        ( @impl ( $($field:tt: $type:ident),* ) ) => {
+            #[allow(single_use_lifetimes)]
+            impl< 'a, $($type),* > Readable<'a> for ( $($type,)* )
+            where
+                $($type: 'static + for<'b> Readable<'b>,)*
+            {
+                #[track_caller]
+                #[allow(unused_variables)]
+                fn read<R: Reader>(reader: &'a mut R) -> Self {
+                    ( $($type::read(reader),)* )
+                }
+            }
+        };
+        ( @impl ( $($field:tt: $type:ident),* )() ) => {};
+        (
+            @impl
+            ( $($field:tt: $type:ident),* )
+            ( $next_field:tt: $next_type:ident
+                $(, $rest_fields:tt: $rest_types:ident)*
+            )
+        ) => {
+            def!(@impl ( $($field: $type,)* $next_field: $next_type ));
+            def!(
+                @impl ( $($field: $type,)* $next_field: $next_type )
+                ( $($rest_fields: $rest_types),* )
+            );
+        };
+    }
+    def!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
+
+    #[allow(single_use_lifetimes)]
+    impl<'a, T, const N: usize> Readable<'a> for [T; N]
+    where
+        T: 'static + for<'b> Readable<'b>,
+    {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            [(); N].map(|()| T::read(reader))
+        }
+    }
+}
+
+// ========
+
+use writable::*;
+mod writable {
+    use std::fmt::Display;
+    use std::io::Write;
+    use std::num::{
+        NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
+        NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
+    };
+
+    pub trait Writable {
+        fn write<W: Write>(self, writer: &mut W);
+    }
+
+    macro_rules! def1 {
+        ( impl $( ( $($args:tt)* ) )? Writable for $ty:ty {
+            $($tt:tt)*
+        } ) => {
+            impl $( < $($args)* > )? Writable for $ty {
+                $($tt)*
+            }
+
+            impl $( < $($args)* > )? Writable for &$ty {
+                $($tt)*
+            }
+
+            impl $( < $($args)* > )? Writable for &mut $ty {
+                $($tt)*
+            }
+        };
+    }
+
+    macro_rules! def2 {
+        ( $( $ty:ty ),* $(,)? ) => {
+            $(
+                def1! {
+                    impl Writable for $ty {
+                        fn write<W: Write>(self, writer: &mut W) {
+                            write!(writer, "{}", &self).unwrap();
+                        }
+                    }
+                }
+            )*
+        };
+    }
+    def2! {
+        u8, u16, u32, u64, u128, usize,
+        i8, i16, i32, i64, i128, isize,
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize,
+        bool, f32, f64,
+        char, &str, String
+    }
+
+    def1! {
+        impl(T: Display, E: Display) Writable for Result<T, E> {
+            fn write<W: Write>(self, writer: &mut W) {
+                match self {
+                    Ok(ok) => write!(writer, "{}", ok).unwrap(),
+                    Err(err) => write!(writer, "{}", err).unwrap(),
+                }
+            }
+        }
+    }
+}
+
+// ========
+
+use str_ext::*;
+mod str_ext {
+    pub trait StrExt {
+        fn word_start_offset(self) -> Option<usize>;
+        fn word_end_offset(self) -> Option<usize>;
+    }
+
+    impl StrExt for &str {
+        fn word_start_offset(self) -> Option<usize> {
+            self.bytes().position(|ch| !ch.is_ascii_whitespace())
+        }
+
+        fn word_end_offset(self) -> Option<usize> {
+            self.bytes().position(|ch| ch.is_ascii_whitespace())
+        }
+    }
+
+    impl StrExt for &[u8] {
+        fn word_start_offset(self) -> Option<usize> {
+            self.iter().position(|ch| !ch.is_ascii_whitespace())
+        }
+
+        fn word_end_offset(self) -> Option<usize> {
+            self.iter().position(|ch| ch.is_ascii_whitespace())
+        }
+    }
+}
+
+// ========
+
+use remaining_bytes::*;
+mod remaining_bytes {
+    #[derive(Clone, Debug, Default)]
+    pub struct RemainingBytes {
+        bytes: Vec<u8>,
+        offset: usize,
+    }
+
+    impl RemainingBytes {
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn take(&mut self, len: usize) -> &[u8] {
+            let bytes = &self.bytes[self.offset..self.offset + len];
+            self.offset += len;
+            bytes
+        }
+
+        pub fn take_array<const N: usize>(&mut self) -> [u8; N] {
+            let bytes = self.bytes[self.offset..self.offset + N].try_into().unwrap();
+            self.offset += N;
+            bytes
+        }
+
+        pub fn as_bytes(&self) -> &[u8] {
+            &self.bytes[self.offset..]
+        }
+    }
+
+    impl From<String> for RemainingBytes {
+        fn from(string: String) -> Self {
+            Self {
+                bytes: string.into_bytes(),
+                offset: 0,
+            }
+        }
+    }
+}
+
+// ========
+
+use ch::*;
+mod ch {
+    use std::io::Write;
+
+    use crate::{Readable, Reader, Writable};
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct Ch(pub u8);
+
+    #[allow(single_use_lifetimes)]
+    impl<'a> Readable<'a> for Ch {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            reader.goto_word().unwrap();
+            let ch: [u8; 1] = reader.read_chars().unwrap();
+            Ch(ch[0])
+        }
+    }
+
+    impl Writable for Ch {
+        #[track_caller]
+        fn write<W: Write>(self, writer: &mut W) {
+            write!(writer, "{}", self.0 as char).unwrap();
+        }
+    }
+}
+
+// ========
+
+use chs::*;
+mod chs {
+    use core::str::from_utf8;
+    use std::io::Write;
+
+    use crate::{Readable, Reader, Writable};
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct Chs<const N: usize>(pub [u8; N]);
+
+    #[allow(single_use_lifetimes)]
+    impl<'a, const N: usize> Readable<'a> for Chs<N> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            reader.goto_word().unwrap();
+            let chs = reader
+                .read_chars()
+                .expect("target word length exceeds source line length");
+            Chs(chs)
+        }
+    }
+
+    impl<const N: usize> Writable for Chs<N> {
+        #[track_caller]
+        fn write<W: Write>(self, writer: &mut W) {
+            write!(writer, "{}", from_utf8(&self.0).unwrap()).unwrap();
+        }
+    }
+}
+
+// ========
+
+use word::*;
+mod word {
+    use core::borrow::Borrow;
+    use core::str::from_utf8;
+    use std::io::Write;
+
+    use crate::{Readable, Reader, StrExt, Writable};
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct Word<T>(pub T);
+
+    pub type VecWord = Word<Vec<u8>>;
+    pub type SliceWord<'a> = Word<&'a [u8]>;
+    pub type ArrayWord<const N: usize> = Word<[u8; N]>;
+
+    impl<T: Borrow<[u8]>> Word<T> {
+        pub fn len(&self) -> usize {
+            self.0.borrow().len()
+        }
+    }
+
+    #[allow(single_use_lifetimes)]
+    impl<'a> Readable<'a> for Word<&'a [u8]> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            reader.goto_word().unwrap();
+            let word = reader.read_until(|line| line.word_end_offset()).unwrap();
+            Word(word)
+        }
+    }
+
+    #[allow(single_use_lifetimes)]
+    impl<'a, const N: usize> Readable<'a> for Word<[u8; N]> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            let word = SliceWord::read(reader)
+                .0
+                .try_into()
+                .expect("target word length is not equal to the source word length");
+            Word(word)
+        }
+    }
+
+    #[allow(single_use_lifetimes)]
+    impl<'a> Readable<'a> for Word<Vec<u8>> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            let word = SliceWord::read(reader);
+            Word(word.0.to_vec())
+        }
+    }
+
+    impl<T: Borrow<[u8]>> Writable for Word<T> {
+        #[track_caller]
+        fn write<W: Write>(self, writer: &mut W) {
+            write!(writer, "{}", from_utf8(self.0.borrow()).unwrap()).unwrap();
+        }
+    }
+}
+
+// ========
+
+use partial_word::*;
+mod partial_word {
+    use core::borrow::Borrow;
+    use core::str::from_utf8;
+    use std::io::Write;
+
+    use crate::{Readable, Reader, SliceWord, StrExt, Word, Writable};
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct PartialWord<const N: usize>([u8; N]);
+
+    impl<const N: usize> PartialWord<N> {
+        pub fn as_word(&self) -> Word<&[u8]> {
+            Word(&self.0[0..self.len()])
+        }
+
+        pub fn len(&self) -> usize {
+            self.0
+                .iter()
+                .take_while(|ch| !ch.is_ascii_whitespace())
+                .count()
+        }
+    }
+
+    #[allow(single_use_lifetimes)]
+    impl<'a, const N: usize> Readable<'a> for PartialWord<N> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            let slice = SliceWord::read(reader);
+            assert!(
+                slice.len() <= N,
+                "source word length exceeds target word length"
+            );
+            let mut word = [0; N];
+            word[0..slice.len()].copy_from_slice(slice.0);
+            PartialWord(word)
+        }
+    }
+
+    impl<const N: usize> Writable for PartialWord<N> {
+        #[track_caller]
+        fn write<W: Write>(self, writer: &mut W) {
+            self.as_word().write(writer)
+        }
+    }
+}
+
+// ========
+
+use dec::*;
+mod dec {
+    use std::borrow::Borrow;
+    use std::io::Write;
+
+    use crate::{Readable, Reader, SliceWord, Writable};
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct Dec<T = Vec<u8>>(pub T);
+
+    #[allow(single_use_lifetimes)]
+    impl<'a, const N: usize> Readable<'a> for Dec<[u8; N]> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            let word = SliceWord::read(reader);
+            if word.len() > N {
+                panic!("source word length exceeds target word length");
+            }
+            let mut dec = [0; N];
+            dec[0..word.len()].copy_from_slice(word.0);
+            for value in &mut dec {
+                assert!(*value >= b'0' && *value <= b'9');
+                *value -= b'0';
+            }
+            Dec(dec)
+        }
+    }
+
+    #[allow(single_use_lifetimes)]
+    impl<'a> Readable<'a> for Dec<Vec<u8>> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            let word = SliceWord::read(reader);
+            Dec(word
+                .0
+                .iter()
+                .map(|ch| {
+                    assert!((b'0'..=b'9').contains(&ch));
+                    ch - b'0'
+                })
+                .collect())
+        }
+    }
+
+    impl<T: Borrow<[u8]>> Writable for Dec<T> {
+        #[track_caller]
+        fn write<W: Write>(self, writer: &mut W) {
+            for &ch in self.0.borrow() {
+                assert!(ch <= 9);
+                write!(writer, "{}", (ch + b'0') as char).unwrap();
+            }
+        }
+    }
+}
+
+// ========
+
+/*
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct JoinedTuple<T>(T);
+
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct SeperatedTuple<T>(T, &'static str);
+
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct JoinedIterator<T>(T);
+
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct SeperatedIterator<T>(T, &'static str);
+
+
+macro_rules! def {
+    ( $($field:tt: $type:ident),* ) => {
+        def!(@impl ());
+        def!(@impl ()( $($field: $type),* ));
+    };
+    ( @impl ( $($field:tt: $type:ident),* ) ) => {
         impl< $($type),* > Writable for ( $($type,)* )
         where
-            $($type: Writable,)*
+            $( $type: Writable, )*
         {
             #[track_caller]
-            fn write<W: Writer>(&self, writer: &mut W) {
+            fn write<W: Writer>(self, writer: &mut W) {
                 $(
-                    self.$field.write(writer);
+                    writer.write(self.$field);
+                )*
+            }
+        }
+
+        impl< 'a, $($type),* > Writable for &'a ( $($type,)* )
+        where
+            $( &'a $type: Writable, )*
+        {
+            #[track_caller]
+            fn write<W: Writer>(self, writer: &mut W) {
+                $(
+                    writer.write(&self.$field);
+                )*
+            }
+        }
+
+        impl< 'a, $($type),* > Writable for &'a mut ( $($type,)* )
+        where
+            $( &'a mut $type: Writable, )*
+        {
+            #[track_caller]
+            fn write<W: Writer>(self, writer: &mut W) {
+                $(
+                    writer.write(&mut self.$field);
                 )*
             }
         }
@@ -600,115 +938,18 @@ macro_rules! def {
 }
 def!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
 
-#[allow(single_use_lifetimes)]
-impl<'a, T, const N: usize> Readable<'a> for [T; N]
-where
-    T: 'static + for<'b> Readable<'b>,
-{
-    #[track_caller]
-    fn read<R: Reader>(reader: &'a mut R) -> Self {
-        [(); N].map(|()| T::read(reader))
-    }
-}
-
-impl<T: Writable, const N: usize> Writable for [T; N] {
-    #[track_caller]
-    fn write<W: Writer>(&self, writer: &mut W) {
-        for value in self {
-            value.write(writer);
+macro_rules! def {
+    ( for ( $($arg:tt)* ) $ty:ty ) => {
+        impl< $($arg)* > Writable for $ty
+        where
+            <$ty as IntoIterator>::Item: Writable
+        {
+            fn write<W: Writer>(self, writer: &mut W) {
+                for item in self.into_iter() {
+                    writer.write(item);
+                }
+            }
         }
-    }
+    };
 }
-
-#[allow(single_use_lifetimes)]
-impl<'a> Readable<'a> for Ascii<&'a [u8]> {
-    #[track_caller]
-    fn read<R: Reader>(reader: &'a mut R) -> Self {
-        let value = reader.read_word().unwrap();
-        Ascii(value.as_bytes())
-    }
-}
-
-#[allow(single_use_lifetimes)]
-impl<'a, const N: usize> Readable<'a> for Ascii<[u8; N]> {
-    #[track_caller]
-    fn read<R: Reader>(reader: &'a mut R) -> Self {
-        let ascii = reader.read_ascii_chars::<N>().unwrap();
-        Ascii(ascii)
-    }
-}
-
-#[allow(single_use_lifetimes)]
-impl<'a, const N: usize> Readable<'a> for AsciiWord<[u8; N]> {
-    #[track_caller]
-    fn read<R: Reader>(reader: &'a mut R) -> Self {
-        let value = reader.read_word().unwrap();
-        assert!(value.len() <= N, "the word length exceeds the ascii length");
-        let mut ascii = [0; N];
-        ascii[0..value.len()].copy_from_slice(value.as_bytes());
-        AsciiWord(ascii)
-    }
-}
-
-#[allow(single_use_lifetimes)]
-impl<'a> Readable<'a> for Ascii<Vec<u8>> {
-    #[track_caller]
-    fn read<R: Reader>(reader: &'a mut R) -> Self {
-        let value = reader.read_word().unwrap();
-        Ascii(value.as_bytes().to_owned())
-    }
-}
-
-impl<T: Borrow<[u8]>> Writable for Ascii<T> {
-    #[track_caller]
-    fn write<W: Writer>(&self, writer: &mut W) {
-        let value = from_utf8(self.0.borrow()).unwrap();
-        writer.write_word(value).unwrap();
-    }
-}
-
-#[allow(single_use_lifetimes)]
-impl<'a, const N: usize> Readable<'a> for Dec<[u8; N]> {
-    #[track_caller]
-    fn read<R: Reader>(reader: &'a mut R) -> Self {
-        let value = reader.read_word().unwrap();
-        assert_eq!(
-            value.len(),
-            N,
-            "the length of the word does not match the length of dec"
-        );
-        let mut dec = [0; N];
-        dec.copy_from_slice(value.as_bytes());
-        for value in &mut dec {
-            assert!(*value >= b'0' && *value <= b'9');
-            *value -= b'0';
-        }
-        Dec(dec)
-    }
-}
-
-#[allow(single_use_lifetimes)]
-impl<'a> Readable<'a> for Dec<Vec<u8>> {
-    #[track_caller]
-    fn read<R: Reader>(reader: &'a mut R) -> Self {
-        let value = reader.read_word().unwrap();
-        Dec(value
-            .bytes()
-            .map(|value| {
-                assert!((b'0'..=b'9').contains(&value));
-                value - b'0'
-            })
-            .collect())
-    }
-}
-
-impl<T: Borrow<[u8]>> Writable for Dec<T> {
-    #[track_caller]
-    fn write<W: Writer>(&self, writer: &mut W) {
-        writer.start_word_chars().unwrap();
-        for &ch in self.0.borrow() {
-            assert!(ch <= 9);
-            writer.write_word_chars((ch + b'0') as char).unwrap();
-        }
-    }
-}
+*/
