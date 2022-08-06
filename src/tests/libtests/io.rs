@@ -1,4 +1,4 @@
-use crate::{Chs, Dec, LineReader, ReaderExt, Word, WordWriter, WriterExt};
+use crate::{Chs, DecBe, LineReader, ReaderExt, Word, WordWriter, WriterExt};
 
 use std::io::BufReader;
 
@@ -26,7 +26,10 @@ fn test_read() {
     assert_eq!(re(b" \n ab bc cd ").re::<Word<[u8; 2]>>(), Word(*b"ab"));
     assert_eq!(re(b" \n ab bc cd ").re::<Word<[u8; 3]>>(), Word(*b"ab\0"));
     assert_eq!(re(b" \n ab bc cd ").re::<Word<[u8; 4]>>(), Word(*b"ab\0\0"));
-    assert_eq!(re(b" \n 135 246 357 ").re::<Dec<[u8; 3]>>(), Dec([1, 3, 5]));
+    assert_eq!(
+        re(b" \n 135 246 357 ").re::<DecBe<[u8; 3]>>(),
+        DecBe([1, 3, 5])
+    );
 }
 
 #[test]
@@ -49,19 +52,19 @@ fn test_read_ascii_smaller_size() {
 #[test]
 #[should_panic]
 fn test_read_dec_smaller_size() {
-    let _ = re(b" \n 135 246 357 ").re::<Dec<[u8; 2]>>();
+    let _ = re(b" \n 135 246 357 ").re::<DecBe<[u8; 2]>>();
 }
 
 #[test]
 #[should_panic]
 fn test_read_dec_greater_size() {
-    let _ = re(b" \n 135 246 357 ").re::<Dec<[u8; 4]>>();
+    let _ = re(b" \n 135 246 357 ").re::<DecBe<[u8; 4]>>();
 }
 
 #[test]
 #[should_panic]
 fn test_read_dec_invalid_chars() {
-    let _ = re(b" \n a35 246 357 ").re::<Dec<[u8; 3]>>();
+    let _ = re(b" \n a35 246 357 ").re::<DecBe<[u8; 3]>>();
 }
 
 #[test]
@@ -75,13 +78,13 @@ fn test_write() {
     assert_eq!(wr().wo2(Chs(&b"abc"[..])).as_writer(), b"abc");
     assert_eq!(wr().wo2(Chs(*b"abc")).as_writer(), b"abc");
     assert_eq!(wr().wo2(Chs(b"abc".to_vec())).as_writer(), b"abc");
-    assert_eq!(wr().wo2(Dec(&[1, 2, 3][..])).as_writer(), b"123");
-    assert_eq!(wr().wo2(Dec([1, 2, 3])).as_writer(), b"123");
-    assert_eq!(wr().wo2(Dec(vec![1, 2, 3])).as_writer(), b"123");
+    assert_eq!(wr().wo2(DecBe(&[1, 2, 3][..])).as_writer(), b"123");
+    assert_eq!(wr().wo2(DecBe([1, 2, 3])).as_writer(), b"123");
+    assert_eq!(wr().wo2(DecBe(vec![1, 2, 3])).as_writer(), b"123");
 }
 
 #[test]
 #[should_panic]
 fn test_write_dec_invalid_chars() {
-    let _ = wr().wr(Dec([1, 2, 10]));
+    let _ = wr().wr(DecBe([1, 2, 10]));
 }

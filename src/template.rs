@@ -57,7 +57,7 @@ pub fn problem<I: ReaderExt + WriterExt>(io: &mut I) {
     [1, 2].sort()
 }
 
-const EXAMPLES: &'static str = r####"
+const EXAMPLES: &str = r####"
 ----
 ====
 1
@@ -78,7 +78,7 @@ const EXAMPLES: &'static str = r####"
 #[derive(Clone, Debug)]
 pub struct Preset {}
 
-#[allow(unused_variables)]
+#[allow(unused_variables, clippy::needless_pass_by_value)]
 pub fn interactor<I: ReaderExt + WriterExt>(io: &mut I, preset: Preset) {
     io.li(1i32);
     io.li(2i32);
@@ -405,7 +405,7 @@ mod word_writer {
         }
 
         fn ln(&mut self) {
-            write!(self.writer, "\n").unwrap();
+            writeln!(self.writer).unwrap();
             self.is_seperator_needed = false;
         }
 
@@ -460,7 +460,7 @@ mod readable {
                 $($type: 'static + for<'b> Readable<'b>,)*
             {
                 #[track_caller]
-                #[allow(unused_variables)]
+                #[allow(unused_variables, clippy::unused_unit)]
                 fn read<R: Reader>(reader: &'a mut R) -> Self {
                     ( $($type::read(reader),)* )
                 }
@@ -499,18 +499,52 @@ mod readable {
 
 use writable::*;
 mod writable {
-    use std::fmt::Display;
-    use std::io::Write;
-    use std::num::{
+    use core::fmt::{Display, Formatter};
+    use core::num::{
         NonZeroI128, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI8, NonZeroIsize, NonZeroU128,
         NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU8, NonZeroUsize,
     };
+    use std::io::Write;
 
     pub trait Writable {
         fn write<W: Write>(self, writer: &mut W);
     }
 
-    macro_rules! def1 {
+    #[macro_export]
+    macro_rules! def_wr_by_ref {
+        ( ( $( for $($args:tt)* )? ) $ty:ty ) => {
+            #[allow(unused_qualifications)]
+            impl $( < $($args)* > )? crate::Writable for $ty {
+                fn write<W: ::std::io::Write>(self, writer: &mut W) {
+                    crate::Writable::write(&self, writer)
+                }
+            }
+
+            #[allow(unused_qualifications)]
+            impl $( < $($args)* > )? crate::Writable for &mut $ty {
+                fn write<W: ::std::io::Write>(self, writer: &mut W) {
+                    crate::Writable::write(&*self, writer)
+                }
+            }
+        };
+    }
+
+    #[macro_export]
+    macro_rules! def_wr_and_disp_by_ref {
+        ( ( $( for $($args:tt)* )? ) $ty:ty ) => {
+            crate::def_wr_by_ref!( ( $( for $($args)* )? ) $ty );
+
+            impl $( < $($args)* > )? core::fmt::Display for $ty {
+                fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) ->  Result<(), core::fmt::Error> {
+                    let mut buffer = Vec::new();
+                    Writable::write(self, &mut buffer);
+                    fmt.write_str(::core::str::from_utf8(&buffer).unwrap())
+                }
+            }
+        };
+    }
+
+    macro_rules! def_wr_and_ref_wr {
         ( impl $( ( $($args:tt)* ) )? Writable for $ty:ty {
             $($tt:tt)*
         } ) => {
@@ -528,29 +562,7 @@ mod writable {
         };
     }
 
-    macro_rules! def2 {
-        ( $( $ty:ty ),* $(,)? ) => {
-            $(
-                def1! {
-                    impl Writable for $ty {
-                        fn write<W: Write>(self, writer: &mut W) {
-                            write!(writer, "{}", &self).unwrap();
-                        }
-                    }
-                }
-            )*
-        };
-    }
-    def2! {
-        u8, u16, u32, u64, u128, usize,
-        i8, i16, i32, i64, i128, isize,
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize,
-        bool, f32, f64,
-        char, &str, String
-    }
-
-    def1! {
+    def_wr_and_ref_wr! {
         impl(T: Display, E: Display) Writable for Result<T, E> {
             fn write<W: Write>(self, writer: &mut W) {
                 match self {
@@ -559,6 +571,27 @@ mod writable {
                 }
             }
         }
+    }
+
+    macro_rules! def {
+        ( $( $ty:ty ),* $(,)? ) => {
+            $(
+                impl Writable for &$ty {
+                    fn write<W: Write>(self, writer: &mut W) {
+                        write!(writer, "{}", &self).unwrap();
+                    }
+                }
+                def_wr_by_ref!(() $ty);
+            )*
+        };
+    }
+    def! {
+        u8, u16, u32, u64, u128, usize,
+        i8, i16, i32, i64, i128, isize,
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize,
+        bool, f32, f64,
+        char, &str, String
     }
 }
 
@@ -588,6 +621,22 @@ mod str_ext {
 
         fn word_end_offset(self) -> Option<usize> {
             self.iter().position(|ch| ch.is_ascii_whitespace())
+        }
+    }
+}
+
+// ========
+
+use array_ext::*;
+mod array_ext {
+    pub trait ArrayExt {
+        fn rev(self) -> Self;
+    }
+
+    impl<T, const N: usize> ArrayExt for [T; N] {
+        fn rev(mut self) -> Self {
+            self.reverse();
+            self
         }
     }
 }
@@ -640,8 +689,9 @@ use ch::*;
 mod ch {
     use std::io::Write;
 
-    use crate::{Readable, Reader, Writable};
+    use crate::{def_wr_and_disp_by_ref, Readable, Reader, Writable};
 
+    // TODO: macro to impl display and debug
     #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
     pub struct Ch(pub u8);
 
@@ -655,12 +705,14 @@ mod ch {
         }
     }
 
-    impl Writable for Ch {
+    impl Writable for &Ch {
         #[track_caller]
         fn write<W: Write>(self, writer: &mut W) {
             write!(writer, "{}", self.0 as char).unwrap();
         }
     }
+
+    def_wr_and_disp_by_ref!(() Ch);
 }
 
 // ========
@@ -670,7 +722,7 @@ mod chs {
     use core::str::from_utf8;
     use std::io::Write;
 
-    use crate::{Readable, Reader, Writable};
+    use crate::{def_wr_and_disp_by_ref, Readable, Reader, Writable};
 
     #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
     pub struct Chs<const N: usize>(pub [u8; N]);
@@ -687,12 +739,14 @@ mod chs {
         }
     }
 
-    impl<const N: usize> Writable for Chs<N> {
+    impl<const N: usize> Writable for &Chs<N> {
         #[track_caller]
         fn write<W: Write>(self, writer: &mut W) {
             write!(writer, "{}", from_utf8(&self.0).unwrap()).unwrap();
         }
     }
+
+    def_wr_and_disp_by_ref!((for const N: usize) Chs<N>);
 }
 
 // ========
@@ -703,7 +757,7 @@ mod word {
     use core::str::from_utf8;
     use std::io::Write;
 
-    use crate::{Readable, Reader, StrExt, Writable};
+    use crate::{def_wr_and_disp_by_ref, Readable, Reader, StrExt, Writable};
 
     #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
     pub struct Word<T>(pub T);
@@ -749,12 +803,14 @@ mod word {
         }
     }
 
-    impl<T: Borrow<[u8]>> Writable for Word<T> {
+    impl<T: Borrow<[u8]>> Writable for &Word<T> {
         #[track_caller]
         fn write<W: Write>(self, writer: &mut W) {
             write!(writer, "{}", from_utf8(self.0.borrow()).unwrap()).unwrap();
         }
     }
+
+    def_wr_and_disp_by_ref!((for T: Borrow<[u8]>) Word<T>);
 }
 
 // ========
@@ -765,7 +821,7 @@ mod partial_word {
     use core::str::from_utf8;
     use std::io::Write;
 
-    use crate::{Readable, Reader, SliceWord, StrExt, Word, Writable};
+    use crate::{def_wr_and_disp_by_ref, Readable, Reader, SliceWord, StrExt, Word, Writable};
 
     #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
     pub struct PartialWord<const N: usize>([u8; N]);
@@ -798,61 +854,84 @@ mod partial_word {
         }
     }
 
-    impl<const N: usize> Writable for PartialWord<N> {
+    impl<const N: usize> Writable for &PartialWord<N> {
         #[track_caller]
         fn write<W: Write>(self, writer: &mut W) {
-            self.as_word().write(writer)
+            self.as_word().write(writer);
         }
     }
+
+    def_wr_and_disp_by_ref!((for const N: usize) PartialWord<N>);
 }
 
 // ========
 
 use dec::*;
 mod dec {
-    use std::borrow::Borrow;
+    use core::borrow::{Borrow, BorrowMut};
     use std::io::Write;
 
-    use crate::{Readable, Reader, SliceWord, Writable};
+    use crate::{def_wr_and_disp_by_ref, Readable, Reader, SliceWord, Writable};
 
     #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-    pub struct Dec<T = Vec<u8>>(pub T);
+    pub struct DecBe<T = Vec<u8>>(pub T);
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct DecLe<T = Vec<u8>>(pub T);
+
+    impl<T: BorrowMut<[u8]>> DecBe<T> {
+        fn into_le(self) -> DecLe<T> {
+            let mut digits = self.0;
+            digits.borrow_mut().reverse();
+            DecLe(digits)
+        }
+    }
+
+    impl<T: BorrowMut<[u8]>> DecLe<T> {
+        fn into_be(self) -> DecBe<T> {
+            let mut digits = self.0;
+            digits.borrow_mut().reverse();
+            DecBe(digits)
+        }
+    }
 
     #[allow(single_use_lifetimes)]
-    impl<'a, const N: usize> Readable<'a> for Dec<[u8; N]> {
+    impl<'a, const N: usize> Readable<'a> for DecBe<[u8; N]> {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
             let word = SliceWord::read(reader);
-            if word.len() > N {
-                panic!("source word length exceeds target word length");
-            }
+            assert!(
+                word.len() <= N,
+                "source word length exceeds target word length"
+            );
             let mut dec = [0; N];
             dec[0..word.len()].copy_from_slice(word.0);
             for value in &mut dec {
                 assert!(*value >= b'0' && *value <= b'9');
                 *value -= b'0';
             }
-            Dec(dec)
+            DecBe(dec)
         }
     }
 
     #[allow(single_use_lifetimes)]
-    impl<'a> Readable<'a> for Dec<Vec<u8>> {
+    impl<'a> Readable<'a> for DecBe<Vec<u8>> {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
             let word = SliceWord::read(reader);
-            Dec(word
-                .0
-                .iter()
-                .map(|ch| {
-                    assert!((b'0'..=b'9').contains(&ch));
-                    ch - b'0'
-                })
-                .collect())
+            DecBe(
+                word.0
+                    .iter()
+                    .map(|ch| {
+                        assert!((b'0'..=b'9').contains(ch));
+                        ch - b'0'
+                    })
+                    .collect(),
+            )
         }
     }
 
-    impl<T: Borrow<[u8]>> Writable for Dec<T> {
+    impl<T: Borrow<[u8]>> Writable for &DecBe<T> {
         #[track_caller]
         fn write<W: Write>(self, writer: &mut W) {
             for &ch in self.0.borrow() {
@@ -861,6 +940,8 @@ mod dec {
             }
         }
     }
+
+    def_wr_and_disp_by_ref!((for T: Borrow<[u8]>) DecBe<T>);
 }
 
 // ========
