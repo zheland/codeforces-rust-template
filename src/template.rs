@@ -19,6 +19,9 @@
 #![allow(
     clippy::many_single_char_names,
     clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::module_name_repetitions,
+    clippy::wildcard_imports,
     dead_code,
     non_snake_case,
     unused_imports,
@@ -54,7 +57,6 @@ pub fn problem<I: ReaderExt + WriterExt>(io: &mut I) {
     io.li(a);
     io.li(b);
     io.li(a + b);
-    [1, 2].sort()
 }
 
 const EXAMPLES: &str = r####"
@@ -138,6 +140,32 @@ macro_rules! d {
 
 // ========
 
+macro_rules! impl_for_value_and_refs {
+    ( impl ( $( ( $($args:tt)* ) )? ) ($trait:ty) for ($ty:ty) ( $($bounds:tt)* ) {
+        $($tt:tt)*
+    } ) => {
+        impl $( < $($args)* > )? $trait for $ty
+            $( $bounds )*
+        {
+            $($tt)*
+        }
+
+        impl $( < $($args)* > )? $trait for &$ty
+            $( $bounds )*
+        {
+            $($tt)*
+        }
+
+        impl $( < $($args)* > )? $trait for &mut $ty
+            $( $bounds )*
+        {
+            $($tt)*
+        }
+    };
+}
+
+// ========
+
 use io::*;
 mod io {
     use std::io::{stdin, stdout, BufReader, BufWriter, Stdin, Stdout};
@@ -183,6 +211,7 @@ mod reader {
         fn read_chars<const N: usize>(&mut self) -> Option<[u8; N]>;
 
         fn goto_word(&mut self) -> IoResult<()> {
+            #[allow(clippy::redundant_closure_for_method_calls)]
             let _: &[u8] = self.read_until(|line| line.word_start_offset())?;
             Ok(())
         }
@@ -198,6 +227,7 @@ mod reader_ext {
     use crate::{Io, Readable};
 
     pub trait ReaderExt {
+        #[track_caller]
         fn re<'a, T: Readable<'a>>(&'a mut self) -> T;
     }
 
@@ -410,7 +440,7 @@ mod word_writer {
         }
 
         fn fl(&mut self) {
-            self.writer.flush().unwrap()
+            self.writer.flush().unwrap();
         }
     }
 }
@@ -541,29 +571,19 @@ mod writable {
                     fmt.write_str(::core::str::from_utf8(&buffer).unwrap())
                 }
             }
-        };
-    }
 
-    macro_rules! def_wr_and_ref_wr {
-        ( impl $( ( $($args:tt)* ) )? Writable for $ty:ty {
-            $($tt:tt)*
-        } ) => {
-            impl $( < $($args)* > )? Writable for $ty {
-                $($tt)*
-            }
-
-            impl $( < $($args)* > )? Writable for &$ty {
-                $($tt)*
-            }
-
-            impl $( < $($args)* > )? Writable for &mut $ty {
-                $($tt)*
+            impl $( < $($args)* > )? core::fmt::Debug for $ty {
+                fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) ->  Result<(), core::fmt::Error> {
+                    let mut buffer = Vec::new();
+                    Writable::write(self, &mut buffer);
+                    fmt.write_str(::core::str::from_utf8(&buffer).unwrap())
+                }
             }
         };
     }
 
-    def_wr_and_ref_wr! {
-        impl(T: Display, E: Display) Writable for Result<T, E> {
+    impl_for_value_and_refs! {
+        impl((T: Display, E: Display)) (Writable) for (Result<T, E>) () {
             fn write<W: Write>(self, writer: &mut W) {
                 match self {
                     Ok(ok) => write!(writer, "{}", ok).unwrap(),
@@ -610,6 +630,7 @@ mod str_ext {
         }
 
         fn word_end_offset(self) -> Option<usize> {
+            #[allow(clippy::redundant_closure_for_method_calls)]
             self.bytes().position(|ch| ch.is_ascii_whitespace())
         }
     }
@@ -620,6 +641,7 @@ mod str_ext {
         }
 
         fn word_end_offset(self) -> Option<usize> {
+            #[allow(clippy::redundant_closure_for_method_calls)]
             self.iter().position(|ch| ch.is_ascii_whitespace())
         }
     }
@@ -629,6 +651,18 @@ mod str_ext {
 
 use array_ext::*;
 mod array_ext {
+    pub fn array_from_fn<T, F, const N: usize>(mut cb: F) -> [T; N]
+    where
+        F: FnMut(usize) -> T,
+    {
+        let mut idx = 0;
+        [(); N].map(|_| {
+            let res = cb(idx);
+            idx += 1;
+            res
+        })
+    }
+
     pub trait ArrayExt {
         fn rev(self) -> Self;
     }
@@ -637,6 +671,97 @@ mod array_ext {
         fn rev(mut self) -> Self {
             self.reverse();
             self
+        }
+    }
+}
+
+// ========
+
+use tuple_ext::*;
+mod tuple_ext {
+    pub trait Tuple {}
+
+    macro_rules! def {
+        ( $($field:tt: $type:ident),* ) => {
+            def!(@impl ());
+            def!(@impl ()( $($field: $type),* ));
+        };
+        ( @impl ( $($field:tt: $type:ident),* ) ) => {
+            impl< $($type),* > Tuple for ( $($type,)* ) {}
+        };
+        ( @impl ( $($field:tt: $type:ident),* )() ) => {};
+        (
+            @impl
+            ( $($field:tt: $type:ident),* )
+            ( $next_field:tt: $next_type:ident
+                $(, $rest_fields:tt: $rest_types:ident)*
+            )
+        ) => {
+            def!(@impl ( $($field: $type,)* $next_field: $next_type ));
+            def!(
+                @impl ( $($field: $type,)* $next_field: $next_type )
+                ( $($rest_fields: $rest_types),* )
+            );
+        };
+    }
+    def!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
+
+    pub trait First {
+        type First;
+        fn first(self) -> Self::First;
+        fn first_ref(&self) -> &Self::First;
+        fn first_mut(&mut self) -> &mut Self::First;
+    }
+
+    pub trait Second {
+        type Second;
+        fn second(self) -> Self::Second;
+        fn second_ref(&self) -> &Self::Second;
+        fn second_mut(&mut self) -> &mut Self::Second;
+    }
+
+    pub trait Swap {
+        type Swapped;
+        fn swap(self) -> Self::Swapped;
+    }
+
+    impl<T, U> First for (T, U) {
+        type First = T;
+
+        fn first(self) -> Self::First {
+            self.0
+        }
+
+        fn first_ref(&self) -> &Self::First {
+            &self.0
+        }
+
+        fn first_mut(&mut self) -> &mut Self::First {
+            &mut self.0
+        }
+    }
+
+    impl<T, U> Second for (T, U) {
+        type Second = U;
+
+        fn second(self) -> Self::Second {
+            self.1
+        }
+
+        fn second_ref(&self) -> &Self::Second {
+            &self.1
+        }
+
+        fn second_mut(&mut self) -> &mut Self::Second {
+            &mut self.1
+        }
+    }
+
+    impl<T, U> Swap for (T, U) {
+        type Swapped = (U, T);
+
+        fn swap(self) -> Self::Swapped {
+            (self.1, self.0)
         }
     }
 }
@@ -773,16 +898,24 @@ mod word {
     }
 
     #[allow(single_use_lifetimes)]
+    impl<'a> Readable<'a> for Word<Vec<u8>> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            let word = SliceWord::read(reader);
+            Word(word.0.to_vec())
+        }
+    }
+
     impl<'a> Readable<'a> for Word<&'a [u8]> {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
             reader.goto_word().unwrap();
+            #[allow(clippy::redundant_closure_for_method_calls)]
             let word = reader.read_until(|line| line.word_end_offset()).unwrap();
             Word(word)
         }
     }
 
-    #[allow(single_use_lifetimes)]
     impl<'a, const N: usize> Readable<'a> for Word<[u8; N]> {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
@@ -791,15 +924,6 @@ mod word {
                 .try_into()
                 .expect("target word length is not equal to the source word length");
             Word(word)
-        }
-    }
-
-    #[allow(single_use_lifetimes)]
-    impl<'a> Readable<'a> for Word<Vec<u8>> {
-        #[track_caller]
-        fn read<R: Reader>(reader: &'a mut R) -> Self {
-            let word = SliceWord::read(reader);
-            Word(word.0.to_vec())
         }
     }
 
@@ -824,7 +948,7 @@ mod partial_word {
     use crate::{def_wr_and_disp_by_ref, Readable, Reader, SliceWord, StrExt, Word, Writable};
 
     #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-    pub struct PartialWord<const N: usize>([u8; N]);
+    pub struct PartialWord<const N: usize>(pub [u8; N]);
 
     impl<const N: usize> PartialWord<N> {
         pub fn as_word(&self) -> Word<&[u8]> {
@@ -832,10 +956,7 @@ mod partial_word {
         }
 
         pub fn len(&self) -> usize {
-            self.0
-                .iter()
-                .take_while(|ch| !ch.is_ascii_whitespace())
-                .count()
+            self.0.iter().take_while(|&&ch| ch != b'\0').count()
         }
     }
 
@@ -879,6 +1000,13 @@ mod dec {
     #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
     pub struct DecLe<T = Vec<u8>>(pub T);
 
+    pub type VecDecBe = DecBe<Vec<u8>>;
+    pub type VecDecLe = DecLe<Vec<u8>>;
+    pub type SliceDecBe<'a> = DecBe<&'a [u8]>;
+    pub type SliceDecLe<'a> = DecLe<&'a [u8]>;
+    pub type ArrayDecBe<const N: usize> = DecBe<[u8; N]>;
+    pub type ArrayDecLe<const N: usize> = DecLe<[u8; N]>;
+
     impl<T: BorrowMut<[u8]>> DecBe<T> {
         fn into_le(self) -> DecLe<T> {
             let mut digits = self.0;
@@ -905,8 +1033,8 @@ mod dec {
                 "source word length exceeds target word length"
             );
             let mut dec = [0; N];
-            dec[0..word.len()].copy_from_slice(word.0);
-            for value in &mut dec {
+            dec[N - word.len()..N].copy_from_slice(word.0);
+            for value in &mut dec[N - word.len()..N] {
                 assert!(*value >= b'0' && *value <= b'9');
                 *value -= b'0';
             }
@@ -915,26 +1043,63 @@ mod dec {
     }
 
     #[allow(single_use_lifetimes)]
-    impl<'a> Readable<'a> for DecBe<Vec<u8>> {
+    impl<'a, const N: usize> Readable<'a> for DecLe<[u8; N]> {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
             let word = SliceWord::read(reader);
-            DecBe(
-                word.0
-                    .iter()
-                    .map(|ch| {
-                        assert!((b'0'..=b'9').contains(ch));
-                        ch - b'0'
-                    })
-                    .collect(),
-            )
+            assert!(
+                word.len() <= N,
+                "source word length exceeds target word length"
+            );
+            let mut dec = [0; N];
+            dec[0..word.len()].copy_from_slice(word.0);
+            for value in &mut dec[0..word.len()] {
+                assert!(*value >= b'0' && *value <= b'9');
+                *value -= b'0';
+            }
+            dec[0..word.len()].reverse();
+            DecLe(dec)
+        }
+    }
+
+    fn read_dec_be_iter<R: Reader>(reader: &'_ mut R) -> impl '_ + DoubleEndedIterator<Item = u8> {
+        let word = SliceWord::read(reader);
+        word.0.iter().map(|ch| {
+            assert!((b'0'..=b'9').contains(ch));
+            ch - b'0'
+        })
+    }
+
+    #[allow(single_use_lifetimes)]
+    impl<'a> Readable<'a> for DecBe<Vec<u8>> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            DecBe(read_dec_be_iter(reader).collect())
+        }
+    }
+
+    #[allow(single_use_lifetimes)]
+    impl<'a> Readable<'a> for DecLe<Vec<u8>> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            DecLe(read_dec_be_iter(reader).rev().collect())
         }
     }
 
     impl<T: Borrow<[u8]>> Writable for &DecBe<T> {
         #[track_caller]
         fn write<W: Write>(self, writer: &mut W) {
-            for &ch in self.0.borrow() {
+            for &ch in self.0.borrow().iter().skip_while(|&&ch| ch == b'\0') {
+                assert!(ch <= 9);
+                write!(writer, "{}", (ch + b'0') as char).unwrap();
+            }
+        }
+    }
+
+    impl<T: Borrow<[u8]>> Writable for &DecLe<T> {
+        #[track_caller]
+        fn write<W: Write>(self, writer: &mut W) {
+            for &ch in self.0.borrow().iter().rev().skip_while(|&&ch| ch == b'\0') {
                 assert!(ch <= 9);
                 write!(writer, "{}", (ch + b'0') as char).unwrap();
             }
@@ -942,63 +1107,89 @@ mod dec {
     }
 
     def_wr_and_disp_by_ref!((for T: Borrow<[u8]>) DecBe<T>);
+    def_wr_and_disp_by_ref!((for T: Borrow<[u8]>) DecLe<T>);
 }
 
 // ========
 
-/*
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct JoinedTuple<T>(T);
+pub trait GenOption<T> {
+    fn into_option(self) -> Option<T>;
+}
+
+impl<T> GenOption<T> for () {
+    fn into_option(self) -> Option<T> {
+        None
+    }
+}
+
+impl<T> GenOption<T> for (T,) {
+    fn into_option(self) -> Option<T> {
+        Some(self.0)
+    }
+}
+
+// ========
 
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SeperatedTuple<T>(T, &'static str);
+pub struct SeparatedTuple<Value, Pref, Sep, Suff> {
+    value: Value,
+    prefix: Pref,
+    separator: Sep,
+    suffix: Suff,
+}
 
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct JoinedIterator<T>(T);
+pub struct SeparatedIterator<Value, Pref, Sep, Suff> {
+    value: Value,
+    prefix: Pref,
+    separator: Sep,
+    suffix: Suff,
+}
 
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SeperatedIterator<T>(T, &'static str);
-
+impl<'a, Pref, Sep, Suff> Writable for SeparatedTuple<(), Pref, Sep, Suff>
+where
+    Pref: GenOption<&'a str>,
+    Sep: GenOption<&'a str>,
+    Suff: GenOption<&'a str>,
+{
+    fn write<W: Write>(self, writer: &mut W) {
+        if let Some(prefix) = self.prefix.into_option() {
+            write!(writer, "{}", prefix).unwrap();
+        }
+        if let Some(suffix) = self.suffix.into_option() {
+            write!(writer, "{}", suffix).unwrap();
+        }
+    }
+}
 
 macro_rules! def {
     ( $($field:tt: $type:ident),* ) => {
-        def!(@impl ());
         def!(@impl ()( $($field: $type),* ));
     };
-    ( @impl ( $($field:tt: $type:ident),* ) ) => {
-        impl< $($type),* > Writable for ( $($type,)* )
+    ( @impl ( $first_field:tt: $first_type:ident $(, $field:tt: $type:ident)* ) ) => {
+        impl< 'a, $first_type, $( $type, )* Pref, Sep, Suff > Writable
+            for SeparatedTuple< ( $first_type, $( $type, )* ), Pref, Sep, Suff >
         where
+            $first_type: Writable,
             $( $type: Writable, )*
+            Pref: GenOption<&'a str>,
+            Sep: Copy + GenOption<&'a str>,
+            Suff: GenOption<&'a str>,
         {
-            #[track_caller]
-            fn write<W: Writer>(self, writer: &mut W) {
+            fn write<W: Write>(self, writer: &mut W) {
+                if let Some(prefix) = self.prefix.into_option() {
+                    write!(writer, "{}", prefix).unwrap();
+                }
+                self.value.$first_field.write(writer);
                 $(
-                    writer.write(self.$field);
+                    if let Some(separator) = self.separator.into_option() {
+                        write!(writer, "{}", separator).unwrap();
+                    }
+                    self.value.$field.write(writer);
                 )*
-            }
-        }
-
-        impl< 'a, $($type),* > Writable for &'a ( $($type,)* )
-        where
-            $( &'a $type: Writable, )*
-        {
-            #[track_caller]
-            fn write<W: Writer>(self, writer: &mut W) {
-                $(
-                    writer.write(&self.$field);
-                )*
-            }
-        }
-
-        impl< 'a, $($type),* > Writable for &'a mut ( $($type,)* )
-        where
-            $( &'a mut $type: Writable, )*
-        {
-            #[track_caller]
-            fn write<W: Writer>(self, writer: &mut W) {
-                $(
-                    writer.write(&mut self.$field);
-                )*
+                if let Some(suffix) = self.suffix.into_option() {
+                    write!(writer, "{}", suffix).unwrap();
+                }
             }
         }
     };
@@ -1019,18 +1210,132 @@ macro_rules! def {
 }
 def!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
 
-macro_rules! def {
-    ( for ( $($arg:tt)* ) $ty:ty ) => {
-        impl< $($arg)* > Writable for $ty
-        where
-            <$ty as IntoIterator>::Item: Writable
-        {
-            fn write<W: Writer>(self, writer: &mut W) {
-                for item in self.into_iter() {
-                    writer.write(item);
+impl<'a, I, Pref, Sep, Suff> Writable for SeparatedIterator<I, Pref, Sep, Suff>
+where
+    I: IntoIterator,
+    I::Item: Writable,
+    Pref: GenOption<&'a str>,
+    Sep: Copy + GenOption<&'a str>,
+    Suff: GenOption<&'a str>,
+{
+    fn write<W: Write>(self, writer: &mut W) {
+        if let Some(prefix) = self.prefix.into_option() {
+            write!(writer, "{}", prefix).unwrap();
+        }
+        let mut iter = self.value.into_iter();
+        if let Some(first) = iter.next() {
+            first.write(writer);
+            for item in iter {
+                if let Some(separator) = self.separator.into_option() {
+                    write!(writer, "{}", separator).unwrap();
                 }
+                item.write(writer);
             }
         }
-    };
+        if let Some(suffix) = self.suffix.into_option() {
+            write!(writer, "{}", suffix).unwrap();
+        }
+    }
 }
-*/
+
+impl<Value, Pref, Sep, Suff> SeparatedTuple<Value, Pref, Sep, Suff> {
+    fn new(value: Value, prefix: Pref, separator: Sep, suffix: Suff) -> Self {
+        Self {
+            value,
+            prefix,
+            separator,
+            suffix,
+        }
+    }
+}
+
+impl<Value, Pref, Sep, Suff> SeparatedIterator<Value, Pref, Sep, Suff> {
+    fn new(value: Value, prefix: Pref, separator: Sep, suffix: Suff) -> Self {
+        Self {
+            value,
+            prefix,
+            separator,
+            suffix,
+        }
+    }
+}
+
+pub trait TupleFmt: Sized {
+    fn jo(self) -> SeparatedTuple<Self, (), (), ()>;
+    fn sep(self, separator: &'static str) -> SeparatedTuple<Self, (), (&'static str,), ()>;
+    fn fmt(
+        self,
+        prefix: &'static str,
+        separator: &'static str,
+        suffix: &'static str,
+    ) -> SeparatedTuple<Self, (&'static str,), (&'static str,), (&'static str,)>;
+
+    fn wo(self) -> SeparatedTuple<Self, (), (&'static str,), ()> {
+        self.sep(" ")
+    }
+    fn li(self) -> SeparatedTuple<Self, (), (&'static str,), ()> {
+        self.sep("\n")
+    }
+}
+
+impl<T> TupleFmt for T
+where
+    T: Tuple,
+{
+    fn jo(self) -> SeparatedTuple<Self, (), (), ()> {
+        SeparatedTuple::new(self, (), (), ())
+    }
+
+    fn sep(self, separator: &'static str) -> SeparatedTuple<Self, (), (&'static str,), ()> {
+        SeparatedTuple::new(self, (), (separator,), ())
+    }
+
+    fn fmt(
+        self,
+        prefix: &'static str,
+        separator: &'static str,
+        suffix: &'static str,
+    ) -> SeparatedTuple<Self, (&'static str,), (&'static str,), (&'static str,)> {
+        SeparatedTuple::new(self, (prefix,), (separator,), (suffix,))
+    }
+}
+
+pub trait IteratorFmt: Sized {
+    fn jo(self) -> SeparatedIterator<Self, (), (), ()>;
+    fn sep(self, separator: &'static str) -> SeparatedIterator<Self, (), (&'static str,), ()>;
+    fn fmt(
+        self,
+        prefix: &'static str,
+        separator: &'static str,
+        suffix: &'static str,
+    ) -> SeparatedIterator<Self, (&'static str,), (&'static str,), (&'static str,)>;
+
+    fn wo(self) -> SeparatedIterator<Self, (), (&'static str,), ()> {
+        self.sep(" ")
+    }
+    fn li(self) -> SeparatedIterator<Self, (), (&'static str,), ()> {
+        self.sep("\n")
+    }
+}
+
+impl<I> IteratorFmt for I
+where
+    I: IntoIterator,
+{
+    fn jo(self) -> SeparatedIterator<Self, (), (), ()> {
+        SeparatedIterator::new(self, (), (), ())
+    }
+
+    fn sep(self, separator: &'static str) -> SeparatedIterator<Self, (), (&'static str,), ()> {
+        SeparatedIterator::new(self, (), (separator,), ())
+    }
+
+    fn fmt(
+        self,
+        prefix: &'static str,
+        separator: &'static str,
+        suffix: &'static str,
+    ) -> SeparatedIterator<Self, (&'static str,), (&'static str,), (&'static str,)> {
+        SeparatedIterator::new(self, (prefix,), (separator,), (suffix,))
+    }
+}
