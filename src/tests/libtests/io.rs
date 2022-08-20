@@ -1,6 +1,7 @@
 use crate::{
-    ArrayDecBe, ArrayDecLe, ArrayWord, Ch, Chs, DecBe, DecLe, IteratorFmt, LineReader, PartialWord,
-    ReaderExt, SliceWord, TupleFmt, VecDecBe, VecDecLe, VecWord, Word, WordWriter, WriterExt,
+    ArrayDecBe, ArrayDecLe, ArrayWord, Ch, Chs, DecBe, DecLe, IteratorFmt, LineReader, LineStart,
+    PartialWord, ReaderExt, SliceWord, TupleFmt, VecDecBe, VecDecLe, VecWord, Word, WordCh,
+    WordChs, WordStart, WordWriter, WriterExt,
 };
 
 use std::io::BufReader;
@@ -15,23 +16,49 @@ fn wr() -> WordWriter<Vec<u8>> {
 
 #[test]
 fn test_ch() {
-    let mut input = re(b" \n ab bc \n \n cd ");
+    let mut input = re(b" \n ab cd \n \n ef ");
+
+    assert_eq!(input.re::<Ch>(), Ch(b' '));
+    assert_eq!(input.re::<Ch>(), Ch(b'\n'));
+    assert_eq!(input.re::<Ch>(), Ch(b' '));
     assert_eq!(input.re::<Ch>(), Ch(b'a'));
     assert_eq!(input.re::<Ch>(), Ch(b'b'));
-    assert_eq!(input.re::<Ch>(), Ch(b'b'));
-    assert_eq!(input.re::<Ch>(), Ch(b'c'));
+    assert_eq!(input.re::<(WordStart, Ch)>().1, Ch(b'c'));
+    assert_eq!(input.re::<(LineStart, LineStart, Ch)>().2, Ch(b' '));
+    assert_eq!(input.re::<Ch>(), Ch(b'e'));
     assert_eq!(format!("{}", Ch(b'a')), "a");
     assert_eq!(format!("{:?}", Ch(b'a')), "a");
 }
 
 #[test]
-fn test_chs() {
+fn test_word_ch() {
     let mut input = re(b" \n ab bc \n \n cd ");
-    assert_eq!(input.re::<Chs<1>>(), Chs(*b"a"));
-    assert_eq!(input.re::<Chs<3>>(), Chs(*b"b b"));
-    assert_eq!(input.re::<Chs<1>>(), Chs(*b"c"));
+    assert_eq!(input.re::<WordCh>(), WordCh(b'a'));
+    assert_eq!(input.re::<WordCh>(), WordCh(b'b'));
+    assert_eq!(input.re::<WordCh>(), WordCh(b'b'));
+    assert_eq!(input.re::<WordCh>(), WordCh(b'c'));
+    assert_eq!(format!("{}", WordCh(b'a')), "a");
+    assert_eq!(format!("{:?}", WordCh(b'a')), "a");
+}
+
+#[test]
+fn test_chs() {
+    let mut input = re(b" \n ab cd \n \n ef ");
+    assert_eq!(input.re::<Chs<1>>(), Chs(*b" "));
+    assert_eq!(input.re::<(WordStart, Chs<3>)>().1, Chs(*b"ab "));
+    assert_eq!(input.re::<(LineStart, LineStart, Chs<3>)>().2, Chs(*b" ef"));
     assert_eq!(format!("{}", Chs(*b" abc ")), " abc ");
     assert_eq!(format!("{:?}", Chs(*b" abc ")), " abc ");
+}
+
+#[test]
+fn test_word_chs() {
+    let mut input = re(b" \n ab cd \n \n ef ");
+    assert_eq!(input.re::<WordChs<1>>(), WordChs(*b"a"));
+    assert_eq!(input.re::<WordChs<3>>(), WordChs(*b"b c"));
+    assert_eq!(input.re::<WordChs<1>>(), WordChs(*b"d"));
+    assert_eq!(format!("{}", WordChs(*b" abc ")), " abc ");
+    assert_eq!(format!("{:?}", WordChs(*b" abc ")), " abc ");
 }
 
 #[test]

@@ -141,26 +141,10 @@ macro_rules! d {
 // ========
 
 macro_rules! impl_for_value_and_refs {
-    ( impl ( $( ( $($args:tt)* ) )? ) ($trait:ty) for ($ty:ty) ( $($bounds:tt)* ) {
-        $($tt:tt)*
-    } ) => {
-        impl $( < $($args)* > )? $trait for $ty
-            $( $bounds )*
-        {
-            $($tt)*
-        }
-
-        impl $( < $($args)* > )? $trait for &$ty
-            $( $bounds )*
-        {
-            $($tt)*
-        }
-
-        impl $( < $($args)* > )? $trait for &mut $ty
-            $( $bounds )*
-        {
-            $($tt)*
-        }
+    ( impl ($(($($a:tt)*))?) ($b:ty) for ($c:ty) ($($d:tt)*) { $($e:tt)* } ) => {
+        impl $(<$($a)*>)? $b for $c $($d)* { $($e)* }
+        impl $(<$($a)*>)? $b for &$c $($d)* { $($e)* }
+        impl $(<$($a)*>)? $b for &mut $c $($d)* { $($e)* }
     };
 }
 
@@ -168,7 +152,7 @@ macro_rules! impl_for_value_and_refs {
 
 use io::*;
 mod io {
-    use std::io::{stdin, stdout, BufReader, BufWriter, Stdin, Stdout};
+    use std::io::{stdin, stdout, BufRead, BufReader, BufWriter, Stdin, Stdout};
 
     use crate::{LineReader, WordWriter};
 
@@ -810,13 +794,50 @@ mod remaining_bytes {
 
 // ========
 
+use wort_start::*;
+mod wort_start {
+    use crate::{Readable, Reader};
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct WordStart;
+
+    #[allow(single_use_lifetimes)]
+    impl<'a> Readable<'a> for WordStart {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            reader.goto_word().unwrap();
+            WordStart
+        }
+    }
+}
+
+// ========
+
+use line_start::*;
+mod line_start {
+    use crate::{Readable, Reader};
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct LineStart;
+
+    #[allow(single_use_lifetimes)]
+    impl<'a> Readable<'a> for LineStart {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            reader.skip_line().unwrap();
+            LineStart
+        }
+    }
+}
+
+// ========
+
 use ch::*;
 mod ch {
     use std::io::Write;
 
     use crate::{def_wr_and_disp_by_ref, Readable, Reader, Writable};
 
-    // TODO: macro to impl display and debug
     #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
     pub struct Ch(pub u8);
 
@@ -824,8 +845,14 @@ mod ch {
     impl<'a> Readable<'a> for Ch {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
-            reader.goto_word().unwrap();
-            let ch: [u8; 1] = reader.read_chars().unwrap();
+            let ch: [u8; 1] = loop {
+                match reader.read_chars() {
+                    Some(chs) => break chs,
+                    None => {
+                        reader.skip_line().unwrap();
+                    }
+                }
+            };
             Ch(ch[0])
         }
     }
@@ -838,6 +865,37 @@ mod ch {
     }
 
     def_wr_and_disp_by_ref!(() Ch);
+}
+
+// ========
+
+use word_ch::*;
+mod word_ch {
+    use std::io::Write;
+
+    use crate::{def_wr_and_disp_by_ref, Readable, Reader, Writable};
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct WordCh(pub u8);
+
+    #[allow(single_use_lifetimes)]
+    impl<'a> Readable<'a> for WordCh {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            reader.goto_word().unwrap();
+            let ch: [u8; 1] = reader.read_chars().unwrap();
+            WordCh(ch[0])
+        }
+    }
+
+    impl Writable for &WordCh {
+        #[track_caller]
+        fn write<W: Write>(self, writer: &mut W) {
+            write!(writer, "{}", self.0 as char).unwrap();
+        }
+    }
+
+    def_wr_and_disp_by_ref!(() WordCh);
 }
 
 // ========
@@ -856,7 +914,9 @@ mod chs {
     impl<'a, const N: usize> Readable<'a> for Chs<N> {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
-            reader.goto_word().unwrap();
+            if reader.get_line().is_empty() {
+                reader.skip_line().unwrap();
+            }
             let chs = reader
                 .read_chars()
                 .expect("target word length exceeds source line length");
@@ -872,6 +932,40 @@ mod chs {
     }
 
     def_wr_and_disp_by_ref!((for const N: usize) Chs<N>);
+}
+
+// ========
+
+use word_chs::*;
+mod word_chs {
+    use core::str::from_utf8;
+    use std::io::Write;
+
+    use crate::{def_wr_and_disp_by_ref, Readable, Reader, Writable};
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct WordChs<const N: usize>(pub [u8; N]);
+
+    #[allow(single_use_lifetimes)]
+    impl<'a, const N: usize> Readable<'a> for WordChs<N> {
+        #[track_caller]
+        fn read<R: Reader>(reader: &'a mut R) -> Self {
+            reader.goto_word().unwrap();
+            let chs = reader
+                .read_chars()
+                .expect("target word length exceeds source line length");
+            WordChs(chs)
+        }
+    }
+
+    impl<const N: usize> Writable for &WordChs<N> {
+        #[track_caller]
+        fn write<W: Write>(self, writer: &mut W) {
+            write!(writer, "{}", from_utf8(&self.0).unwrap()).unwrap();
+        }
+    }
+
+    def_wr_and_disp_by_ref!((for const N: usize) WordChs<N>);
 }
 
 // ========
@@ -1112,230 +1206,513 @@ mod dec {
 
 // ========
 
-pub trait GenOption<T> {
-    fn into_option(self) -> Option<T>;
-}
-
-impl<T> GenOption<T> for () {
-    fn into_option(self) -> Option<T> {
-        None
+use gen_option::*;
+mod gen_option {
+    pub trait GenOption<T> {
+        fn into_option(self) -> Option<T>;
     }
-}
 
-impl<T> GenOption<T> for (T,) {
-    fn into_option(self) -> Option<T> {
-        Some(self.0)
+    impl<T> GenOption<T> for () {
+        fn into_option(self) -> Option<T> {
+            None
+        }
+    }
+
+    impl<T> GenOption<T> for (T,) {
+        fn into_option(self) -> Option<T> {
+            Some(self.0)
+        }
     }
 }
 
 // ========
 
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SeparatedTuple<Value, Pref, Sep, Suff> {
-    value: Value,
-    prefix: Pref,
-    separator: Sep,
-    suffix: Suff,
-}
+use separated_tuple::*;
+mod separated_tuple {
+    use std::io::Write;
 
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct SeparatedIterator<Value, Pref, Sep, Suff> {
-    value: Value,
-    prefix: Pref,
-    separator: Sep,
-    suffix: Suff,
-}
+    use crate::{GenOption, Tuple, Writable};
 
-impl<'a, Pref, Sep, Suff> Writable for SeparatedTuple<(), Pref, Sep, Suff>
-where
-    Pref: GenOption<&'a str>,
-    Sep: GenOption<&'a str>,
-    Suff: GenOption<&'a str>,
-{
-    fn write<W: Write>(self, writer: &mut W) {
-        if let Some(prefix) = self.prefix.into_option() {
-            write!(writer, "{}", prefix).unwrap();
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct SeparatedTuple<Value, Pref, Sep, Suff> {
+        value: Value,
+        prefix: Pref,
+        separator: Sep,
+        suffix: Suff,
+    }
+
+    impl<'a, Pref, Sep, Suff> Writable for SeparatedTuple<(), Pref, Sep, Suff>
+    where
+        Pref: GenOption<&'a str>,
+        Sep: GenOption<&'a str>,
+        Suff: GenOption<&'a str>,
+    {
+        fn write<W: Write>(self, writer: &mut W) {
+            if let Some(prefix) = self.prefix.into_option() {
+                write!(writer, "{}", prefix).unwrap();
+            }
+            if let Some(suffix) = self.suffix.into_option() {
+                write!(writer, "{}", suffix).unwrap();
+            }
         }
-        if let Some(suffix) = self.suffix.into_option() {
-            write!(writer, "{}", suffix).unwrap();
+    }
+
+    impl<Value, Pref, Sep, Suff> SeparatedTuple<Value, Pref, Sep, Suff> {
+        fn new(value: Value, prefix: Pref, separator: Sep, suffix: Suff) -> Self {
+            Self {
+                value,
+                prefix,
+                separator,
+                suffix,
+            }
+        }
+    }
+
+    macro_rules! def {
+        ( $($field:tt: $type:ident),* ) => {
+            def!(@impl ()( $($field: $type),* ));
+        };
+        ( @impl ( $first_field:tt: $first_type:ident $(, $field:tt: $type:ident)* ) ) => {
+            impl< 'a, $first_type, $( $type, )* Pref, Sep, Suff > Writable
+                for SeparatedTuple< ( $first_type, $( $type, )* ), Pref, Sep, Suff >
+            where
+                $first_type: Writable,
+                $( $type: Writable, )*
+                Pref: GenOption<&'a str>,
+                Sep: Copy + GenOption<&'a str>,
+                Suff: GenOption<&'a str>,
+            {
+                fn write<W: Write>(self, writer: &mut W) {
+                    if let Some(prefix) = self.prefix.into_option() {
+                        write!(writer, "{}", prefix).unwrap();
+                    }
+                    self.value.$first_field.write(writer);
+                    $(
+                        if let Some(separator) = self.separator.into_option() {
+                            write!(writer, "{}", separator).unwrap();
+                        }
+                        self.value.$field.write(writer);
+                    )*
+                    if let Some(suffix) = self.suffix.into_option() {
+                        write!(writer, "{}", suffix).unwrap();
+                    }
+                }
+            }
+        };
+        ( @impl ( $($field:tt: $type:ident),* )() ) => {};
+        (
+            @impl
+            ( $($field:tt: $type:ident),* )
+            ( $next_field:tt: $next_type:ident
+                $(, $rest_fields:tt: $rest_types:ident)*
+            )
+        ) => {
+            def!(@impl ( $($field: $type,)* $next_field: $next_type ));
+            def!(
+                @impl ( $($field: $type,)* $next_field: $next_type )
+                ( $($rest_fields: $rest_types),* )
+            );
+        };
+    }
+    def!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
+
+    pub trait TupleFmt: Sized {
+        fn jo(self) -> SeparatedTuple<Self, (), (), ()>;
+        fn sep(self, separator: &'static str) -> SeparatedTuple<Self, (), (&'static str,), ()>;
+        fn fmt(
+            self,
+            prefix: &'static str,
+            separator: &'static str,
+            suffix: &'static str,
+        ) -> SeparatedTuple<Self, (&'static str,), (&'static str,), (&'static str,)>;
+
+        fn wo(self) -> SeparatedTuple<Self, (), (&'static str,), ()> {
+            self.sep(" ")
+        }
+        fn li(self) -> SeparatedTuple<Self, (), (&'static str,), ()> {
+            self.sep("\n")
+        }
+    }
+
+    impl<T> TupleFmt for T
+    where
+        T: Tuple,
+    {
+        fn jo(self) -> SeparatedTuple<Self, (), (), ()> {
+            SeparatedTuple::new(self, (), (), ())
+        }
+
+        fn sep(self, separator: &'static str) -> SeparatedTuple<Self, (), (&'static str,), ()> {
+            SeparatedTuple::new(self, (), (separator,), ())
+        }
+
+        fn fmt(
+            self,
+            prefix: &'static str,
+            separator: &'static str,
+            suffix: &'static str,
+        ) -> SeparatedTuple<Self, (&'static str,), (&'static str,), (&'static str,)> {
+            SeparatedTuple::new(self, (prefix,), (separator,), (suffix,))
         }
     }
 }
 
-macro_rules! def {
-    ( $($field:tt: $type:ident),* ) => {
-        def!(@impl ()( $($field: $type),* ));
-    };
-    ( @impl ( $first_field:tt: $first_type:ident $(, $field:tt: $type:ident)* ) ) => {
-        impl< 'a, $first_type, $( $type, )* Pref, Sep, Suff > Writable
-            for SeparatedTuple< ( $first_type, $( $type, )* ), Pref, Sep, Suff >
-        where
-            $first_type: Writable,
-            $( $type: Writable, )*
-            Pref: GenOption<&'a str>,
-            Sep: Copy + GenOption<&'a str>,
-            Suff: GenOption<&'a str>,
-        {
-            fn write<W: Write>(self, writer: &mut W) {
-                if let Some(prefix) = self.prefix.into_option() {
-                    write!(writer, "{}", prefix).unwrap();
-                }
-                self.value.$first_field.write(writer);
-                $(
+// ========
+
+use separated_iterator::*;
+mod separated_iterator {
+    use std::io::Write;
+
+    use crate::{GenOption, Writable};
+
+    #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct SeparatedIterator<Value, Pref, Sep, Suff> {
+        value: Value,
+        prefix: Pref,
+        separator: Sep,
+        suffix: Suff,
+    }
+
+    impl<Value, Pref, Sep, Suff> SeparatedIterator<Value, Pref, Sep, Suff> {
+        fn new(value: Value, prefix: Pref, separator: Sep, suffix: Suff) -> Self {
+            Self {
+                value,
+                prefix,
+                separator,
+                suffix,
+            }
+        }
+    }
+
+    impl<'a, I, Pref, Sep, Suff> Writable for SeparatedIterator<I, Pref, Sep, Suff>
+    where
+        I: IntoIterator,
+        I::Item: Writable,
+        Pref: GenOption<&'a str>,
+        Sep: Copy + GenOption<&'a str>,
+        Suff: GenOption<&'a str>,
+    {
+        fn write<W: Write>(self, writer: &mut W) {
+            if let Some(prefix) = self.prefix.into_option() {
+                write!(writer, "{}", prefix).unwrap();
+            }
+            let mut iter = self.value.into_iter();
+            if let Some(first) = iter.next() {
+                first.write(writer);
+                for item in iter {
                     if let Some(separator) = self.separator.into_option() {
                         write!(writer, "{}", separator).unwrap();
                     }
-                    self.value.$field.write(writer);
-                )*
-                if let Some(suffix) = self.suffix.into_option() {
-                    write!(writer, "{}", suffix).unwrap();
+                    item.write(writer);
+                }
+            }
+            if let Some(suffix) = self.suffix.into_option() {
+                write!(writer, "{}", suffix).unwrap();
+            }
+        }
+    }
+
+    pub trait IteratorFmt: Sized {
+        fn jo(self) -> SeparatedIterator<Self, (), (), ()>;
+        fn sep(self, separator: &'static str) -> SeparatedIterator<Self, (), (&'static str,), ()>;
+        fn fmt(
+            self,
+            prefix: &'static str,
+            separator: &'static str,
+            suffix: &'static str,
+        ) -> SeparatedIterator<Self, (&'static str,), (&'static str,), (&'static str,)>;
+
+        fn wo(self) -> SeparatedIterator<Self, (), (&'static str,), ()> {
+            self.sep(" ")
+        }
+        fn li(self) -> SeparatedIterator<Self, (), (&'static str,), ()> {
+            self.sep("\n")
+        }
+    }
+
+    impl<I> IteratorFmt for I
+    where
+        I: IntoIterator,
+    {
+        fn jo(self) -> SeparatedIterator<Self, (), (), ()> {
+            SeparatedIterator::new(self, (), (), ())
+        }
+
+        fn sep(self, separator: &'static str) -> SeparatedIterator<Self, (), (&'static str,), ()> {
+            SeparatedIterator::new(self, (), (separator,), ())
+        }
+
+        fn fmt(
+            self,
+            prefix: &'static str,
+            separator: &'static str,
+            suffix: &'static str,
+        ) -> SeparatedIterator<Self, (&'static str,), (&'static str,), (&'static str,)> {
+            SeparatedIterator::new(self, (prefix,), (separator,), (suffix,))
+        }
+    }
+}
+
+// ========
+
+use values::*;
+mod values {
+    macro_rules! def {
+        ( $name:ident, $fn:ident, $is:ident, $value:literal ) => {
+            pub trait $name {
+                fn $fn() -> Self;
+                fn $is(&self) -> bool;
+            }
+            def!(
+                @impl $name, $fn, $is, $value,
+                u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
+            );
+        };
+        ( @impl $name:ident, $fn:ident, $is:ident, $value:literal, $ty:ty $(, $($ts:ty),*)? ) => {
+            impl $name for $ty {
+                fn $fn() -> Self {
+                    $value
+                }
+
+                fn $is(&self) -> bool {
+                    *self == $value
+                }
+            }
+            $( def!(@impl $name, $fn, $is, $value, $($ts),*); )?
+        };
+    }
+
+    def!(Zero, zero, is_zero, 0);
+    def!(One, one, is_one, 1);
+    def!(Two, two, is_two, 2);
+    def!(Three, three, is_three, 3);
+    def!(Five, five, is_five, 5);
+    def!(Ten, ten, is_ten, 10);
+}
+
+// ========
+
+use mul_div::*;
+mod mul_div {
+    pub trait MulDiv {
+        fn mul_div(self, mul: Self, div: Self) -> Self;
+    }
+
+    macro_rules! def {
+        ( $low:ty, $hi:ty $(, $rest:ty)* ) => {
+            impl MulDiv for $low {
+                fn mul_div(self, mul: Self, div: Self) -> Self {
+                    ((self as $hi) * (mul as $hi) / (div as $hi)) as $low
+                }
+            }
+            def!($hi $(, $rest)*);
+        };
+        ( $last:ty ) => {};
+    }
+
+    def!(u8, u16, u32, u64, u128);
+    def!(i8, i16, i32, i64, i128);
+}
+
+// ========
+
+use binomials_line::*;
+mod binomials_line {
+    use core::ops::{AddAssign, SubAssign};
+
+    use crate::values::One;
+
+    #[derive(Clone, Debug)]
+    pub struct BinomialsLine<T>(Vec<T>, usize);
+
+    impl<T: One> Default for BinomialsLine<T> {
+        fn default() -> Self {
+            Self(vec![T::one()], 0)
+        }
+    }
+
+    impl<T> BinomialsLine<T> {
+        pub fn new() -> Self
+        where
+            T: One,
+        {
+            Self::default()
+        }
+
+        pub fn goto_n(&mut self, n: usize)
+        where
+            T: Copy + AddAssign + SubAssign,
+        {
+            if self.1 < n {
+                while self.1 < n {
+                    if self.1 & 1 == 1 {
+                        self.0.push(*self.0.last().unwrap());
+                    }
+                    self.1 += 1;
+                    for j in (1..=self.1 / 2).rev() {
+                        let data = &mut self.0[..];
+                        data[j] += data[j - 1];
+                    }
+                }
+            } else if self.1 > n {
+                while self.1 > n {
+                    if self.1 & 1 == 0 {
+                        let _ = self.0.pop();
+                    }
+                    self.1 -= 1;
+                    for j in 1..=self.1 / 2 {
+                        let data = &mut self.0[..];
+                        data[j] -= data[j - 1];
+                    }
                 }
             }
         }
-    };
-    ( @impl ( $($field:tt: $type:ident),* )() ) => {};
-    (
-        @impl
-        ( $($field:tt: $type:ident),* )
-        ( $next_field:tt: $next_type:ident
-            $(, $rest_fields:tt: $rest_types:ident)*
-        )
-    ) => {
-        def!(@impl ( $($field: $type,)* $next_field: $next_type ));
-        def!(
-            @impl ( $($field: $type,)* $next_field: $next_type )
-            ( $($rest_fields: $rest_types),* )
-        );
-    };
-}
-def!(0: T0, 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7);
 
-impl<'a, I, Pref, Sep, Suff> Writable for SeparatedIterator<I, Pref, Sep, Suff>
-where
-    I: IntoIterator,
-    I::Item: Writable,
-    Pref: GenOption<&'a str>,
-    Sep: Copy + GenOption<&'a str>,
-    Suff: GenOption<&'a str>,
-{
-    fn write<W: Write>(self, writer: &mut W) {
-        if let Some(prefix) = self.prefix.into_option() {
-            write!(writer, "{}", prefix).unwrap();
+        pub fn line(&self) -> &[T] {
+            &self.0
         }
-        let mut iter = self.value.into_iter();
-        if let Some(first) = iter.next() {
-            first.write(writer);
-            for item in iter {
-                if let Some(separator) = self.separator.into_option() {
-                    write!(writer, "{}", separator).unwrap();
-                }
-                item.write(writer);
+
+        // n\k 0  1  2  3  4  5
+        // 0   1
+        // 1   1  1
+        // 2   1  2  1
+        // 3   1  3  3  1
+        // 4   1  4  6  4  1
+        // 5   1  5 10 10  5  1
+        pub fn compute(&mut self, n: usize, k: usize) -> T
+        where
+            T: Copy + AddAssign + SubAssign,
+        {
+            self.goto_n(n);
+            if k <= n / 2 {
+                self.0[k]
+            } else {
+                self.0[n - k]
             }
         }
-        if let Some(suffix) = self.suffix.into_option() {
-            write!(writer, "{}", suffix).unwrap();
+    }
+}
+
+// ========
+
+use binomials_table::*;
+mod binomials_table {
+    use core::ops::Add;
+
+    use crate::values::{One, Zero};
+
+    #[derive(Clone, Debug)]
+    pub struct BinomialsTable<T>(Vec<T>, usize);
+
+    impl<T: One> Default for BinomialsTable<T> {
+        fn default() -> Self {
+            Self(vec![T::one(), T::one()], 2)
+        }
+    }
+
+    impl<T: One> BinomialsTable<T> {
+        pub fn new(n: usize) -> Self
+        where
+            T: Add<Output = T> + Copy + One + Zero,
+        {
+            let mut binomials = Self::default();
+            binomials.resize(n);
+            binomials
+        }
+
+        pub fn line_offset(line: usize) -> usize {
+            (line / 2 + 1) * ((line + 1) / 2)
+        }
+
+        pub fn half_triangle(&self) -> &[T] {
+            &self.0
+        }
+
+        pub fn resize(&mut self, n: usize)
+        where
+            T: Add<Output = T> + Copy + One + Zero,
+        {
+            if self.1 >= n {
+                return;
+            }
+            self.0.resize(Self::line_offset(n), T::zero());
+            let data = &mut self.0[..];
+            let mut j1 = Self::line_offset(self.1 - 1);
+            for n in self.1..n {
+                let hl = (n + 1) / 2;
+                let j2 = j1 + hl;
+
+                data[j2] = T::one();
+                for j in 1..hl {
+                    data[j2 + j] = data[j1 + j - 1] + data[j1 + j];
+                }
+                if n & 1 == 0 {
+                    data[j2 + hl] = data[j1 + hl - 1] + data[j1 + hl - 1];
+                }
+
+                j1 = j2;
+            }
+            self.1 = n;
+        }
+
+        pub fn get(&self, n: usize, k: usize) -> T
+        where
+            T: Copy,
+        {
+            assert!(n < self.1);
+            assert!(k <= n);
+            let j = Self::line_offset(n);
+            if k <= n / 2 {
+                self.0[j + k]
+            } else {
+                self.0[j + n - k]
+            }
         }
     }
 }
 
-impl<Value, Pref, Sep, Suff> SeparatedTuple<Value, Pref, Sep, Suff> {
-    fn new(value: Value, prefix: Pref, separator: Sep, suffix: Suff) -> Self {
-        Self {
-            value,
-            prefix,
-            separator,
-            suffix,
+// ========
+
+use binomial::*;
+mod binomial {
+    use core::cmp::PartialOrd;
+    use core::ops::{Add, AddAssign, Div, Mul, Sub};
+
+    use crate::{Five, MulDiv, One, Ten, Three, Two, Zero};
+
+    // (n | k) = n! / (k! * (n - k)!)
+    // (n | 0) = 1
+    // (n | k + 1) = (n | k) * (n - k) / (k - 1)
+    // (5 | 0) = 1
+    // (5 | 1) = 1 * 5 / 1 = 5
+    // (5 | 2) = 5 * 4 / 2 = 10
+    pub fn binomial<T>(n: T, k: T) -> T
+    where
+        T: Add<Output = T>
+            + AddAssign
+            + Copy
+            + MulDiv
+            + One
+            + Ord
+            + PartialOrd
+            + Sub<Output = T>
+            + Zero,
+    {
+        use core::cmp::min;
+        if k > n {
+            return T::zero();
         }
-    }
-}
+        let kf = min(k, n - k);
 
-impl<Value, Pref, Sep, Suff> SeparatedIterator<Value, Pref, Sep, Suff> {
-    fn new(value: Value, prefix: Pref, separator: Sep, suffix: Suff) -> Self {
-        Self {
-            value,
-            prefix,
-            separator,
-            suffix,
+        let one = T::one();
+        let mut p = n - kf + one;
+        let mut k = one;
+        let mut value = one;
+        while k <= kf {
+            value = value.mul_div(p, k);
+            k += one;
+            p += one;
         }
-    }
-}
-
-pub trait TupleFmt: Sized {
-    fn jo(self) -> SeparatedTuple<Self, (), (), ()>;
-    fn sep(self, separator: &'static str) -> SeparatedTuple<Self, (), (&'static str,), ()>;
-    fn fmt(
-        self,
-        prefix: &'static str,
-        separator: &'static str,
-        suffix: &'static str,
-    ) -> SeparatedTuple<Self, (&'static str,), (&'static str,), (&'static str,)>;
-
-    fn wo(self) -> SeparatedTuple<Self, (), (&'static str,), ()> {
-        self.sep(" ")
-    }
-    fn li(self) -> SeparatedTuple<Self, (), (&'static str,), ()> {
-        self.sep("\n")
-    }
-}
-
-impl<T> TupleFmt for T
-where
-    T: Tuple,
-{
-    fn jo(self) -> SeparatedTuple<Self, (), (), ()> {
-        SeparatedTuple::new(self, (), (), ())
-    }
-
-    fn sep(self, separator: &'static str) -> SeparatedTuple<Self, (), (&'static str,), ()> {
-        SeparatedTuple::new(self, (), (separator,), ())
-    }
-
-    fn fmt(
-        self,
-        prefix: &'static str,
-        separator: &'static str,
-        suffix: &'static str,
-    ) -> SeparatedTuple<Self, (&'static str,), (&'static str,), (&'static str,)> {
-        SeparatedTuple::new(self, (prefix,), (separator,), (suffix,))
-    }
-}
-
-pub trait IteratorFmt: Sized {
-    fn jo(self) -> SeparatedIterator<Self, (), (), ()>;
-    fn sep(self, separator: &'static str) -> SeparatedIterator<Self, (), (&'static str,), ()>;
-    fn fmt(
-        self,
-        prefix: &'static str,
-        separator: &'static str,
-        suffix: &'static str,
-    ) -> SeparatedIterator<Self, (&'static str,), (&'static str,), (&'static str,)>;
-
-    fn wo(self) -> SeparatedIterator<Self, (), (&'static str,), ()> {
-        self.sep(" ")
-    }
-    fn li(self) -> SeparatedIterator<Self, (), (&'static str,), ()> {
-        self.sep("\n")
-    }
-}
-
-impl<I> IteratorFmt for I
-where
-    I: IntoIterator,
-{
-    fn jo(self) -> SeparatedIterator<Self, (), (), ()> {
-        SeparatedIterator::new(self, (), (), ())
-    }
-
-    fn sep(self, separator: &'static str) -> SeparatedIterator<Self, (), (&'static str,), ()> {
-        SeparatedIterator::new(self, (), (separator,), ())
-    }
-
-    fn fmt(
-        self,
-        prefix: &'static str,
-        separator: &'static str,
-        suffix: &'static str,
-    ) -> SeparatedIterator<Self, (&'static str,), (&'static str,), (&'static str,)> {
-        SeparatedIterator::new(self, (prefix,), (separator,), (suffix,))
+        value
     }
 }
