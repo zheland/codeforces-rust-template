@@ -29,7 +29,10 @@
 )]
 
 #[cfg(test)]
-mod tests;
+pub mod tests;
+
+#[cfg(test)]
+pub mod extensions;
 
 use core::borrow::{Borrow, BorrowMut};
 use core::cell::RefCell;
@@ -37,7 +40,7 @@ use core::cmp::Ordering::{Equal, Greater, Less};
 use core::cmp::{max, min};
 use core::convert::Infallible;
 use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
-use core::iter::{empty, once, repeat};
+use core::iter::{empty, once, repeat, successors};
 use core::marker::PhantomData;
 use core::mem::{replace, swap, take};
 use core::str::{from_utf8, FromStr};
@@ -133,19 +136,28 @@ fn test_interactor() {
     test_with_interactor(problem, |io| interactor(io, Preset {}))
 }
 
-#[macro_export]
-macro_rules! d {
-    ( $($arg:tt)* ) => ( if cfg!(debug_assertions) { $($arg)* } )
+// ========
+
+use debug::*;
+mod debug {
+    #[macro_export]
+    macro_rules! d {
+        ( $($arg:tt)* ) => ( if cfg!(debug_assertions) { $($arg)* } )
+    }
 }
 
 // ========
 
-macro_rules! impl_for_value_and_refs {
-    ( impl ($(($($a:tt)*))?) ($b:ty) for ($c:ty) ($($d:tt)*) { $($e:tt)* } ) => {
-        impl $(<$($a)*>)? $b for $c $($d)* { $($e)* }
-        impl $(<$($a)*>)? $b for &$c $($d)* { $($e)* }
-        impl $(<$($a)*>)? $b for &mut $c $($d)* { $($e)* }
-    };
+use util::*;
+mod util {
+    #[macro_export]
+    macro_rules! impl_for_value_and_refs {
+        ( impl ($(($($a:tt)*))?) ($b:ty) for ($c:ty) ($($d:tt)*) { $($e:tt)* } ) => {
+            impl $(<$($a)*>)? $b for $c $($d)* { $($e)* }
+            impl $(<$($a)*>)? $b for &$c $($d)* { $($e)* }
+            impl $(<$($a)*>)? $b for &mut $c $($d)* { $($e)* }
+        };
+    }
 }
 
 // ========
@@ -520,6 +532,8 @@ mod writable {
     };
     use std::io::Write;
 
+    use crate::impl_for_value_and_refs;
+
     pub trait Writable {
         fn write<W: Write>(self, writer: &mut W);
     }
@@ -746,6 +760,42 @@ mod tuple_ext {
 
         fn swap(self) -> Self::Swapped {
             (self.1, self.0)
+        }
+    }
+}
+
+// ========
+
+use bool_ext::*;
+mod bool_ext {
+    pub trait BoolExt {
+        fn select<T>(self, t: T, f: T) -> T;
+        fn select_with<T, F1: FnOnce() -> T, F2: FnOnce() -> T>(self, t: F1, f: F2) -> T;
+
+        fn then_some<T>(self, some: T) -> Option<T>;
+
+        fn as_result<T, E>(self, ok: T, err: E) -> Result<T, E>;
+    }
+
+    impl BoolExt for bool {
+        fn select<T>(self, t: T, f: T) -> T {
+            self.select_with(|| t, || f)
+        }
+
+        fn select_with<T, F1: FnOnce() -> T, F2: FnOnce() -> T>(self, t: F1, f: F2) -> T {
+            if self {
+                t()
+            } else {
+                f()
+            }
+        }
+
+        fn then_some<T>(self, some: T) -> Option<T> {
+            self.select(Some(some), None)
+        }
+
+        fn as_result<T, E>(self, ok: T, err: E) -> Result<T, E> {
+            self.select(Ok(ok), Err(err))
         }
     }
 }
@@ -1492,6 +1542,64 @@ mod values {
 
 // ========
 
+use ops::*;
+mod ops {
+    macro_rules! def {
+        ((
+            $trait:ident $( ($($bounds:tt)*) )?,
+            fn $fn:ident($($self:ident $(, $arg:ident: $arg_ty:ty)*)?) -> $ret:ty {
+                u: $uexpr:expr, i: $iexpr:expr
+            }
+        )) => {
+            pub trait $trait $( where $($bounds)* )? {
+                fn $fn($($self $(, $arg: $arg_ty)*)?) -> $ret;
+            }
+            def!(@impl $trait, fn $fn($($self $(, $arg: $arg_ty)*)?) -> $ret {
+                u8: $uexpr, u16: $uexpr, u32: $uexpr, u64: $uexpr, u128: $uexpr, usize: $uexpr,
+                i8: $iexpr, i16: $iexpr, i32: $iexpr, i64: $iexpr, i128: $iexpr, isize: $iexpr
+            });
+        };
+        ((
+            $trait:ident $( ($($bounds:tt)*) )?,
+            fn $fn:ident($($self:ident $(, $arg:ident: $arg_ty:ty)*)?) -> $ret:ty { $expr:expr }
+        )) => {
+            pub trait $trait $( where $($bounds)* )? {
+                fn $fn($($self $(, $arg: $arg_ty)*)?) -> $ret;
+            }
+            def!(@impl $trait, fn $fn($($self $(, $arg: $arg_ty)*)?) -> $ret {
+                u8: $expr, u16: $expr, u32: $expr, u64: $expr, u128: $expr, usize: $expr,
+                i8: $expr, i16: $expr, i32: $expr, i64: $expr, i128: $expr, isize: $expr
+            });
+        };
+        (@impl $trait:ident, fn $fn:ident($($tt:tt)*) -> $ret:ty {}) => {};
+        (
+            @impl $trait:ident,
+            fn $fn:ident($($self:ident $(, $arg: ident: $arg_ty: ty)*)?) -> $ret:ty {
+                $ty:tt: $expr:expr $(, $ts:tt: $es:expr)*
+            }
+        ) => {
+            impl $trait for $ty {
+                fn $fn($($self $(, $arg: $arg_ty)*)?) -> $ret {
+                    $expr
+                }
+            }
+            def!(@impl $trait, fn $fn($($self $(, $arg: $arg_ty)*)?) -> $ret { $($ts: $es),* });
+        };
+    }
+
+    def!((Min, fn min() -> Self { Self::MIN } ));
+    def!((Max, fn max() -> Self { Self::MAX } ));
+    def!((Abs, fn abs(self) -> Self { u: self, i: self.abs() } ));
+    def!((TrailingZeros, fn trailing_zeros(self) -> u32 { self.trailing_zeros() } ));
+    def!((DivEuclid, fn div_euclid(self, rhs: Self) -> Self { self.div_euclid(rhs) } ));
+    def!((RemEuclid, fn rem_euclid(self, rhs: Self) -> Self { self.rem_euclid(rhs) } ));
+    def!((CheckedMul(Self: Sized), fn checked_mul(self, rhs: Self) -> Option<Self> {
+        self.checked_mul(rhs)
+    } ));
+}
+
+// ========
+
 use mul_div::*;
 mod mul_div {
     pub trait MulDiv {
@@ -1516,78 +1624,61 @@ mod mul_div {
 
 // ========
 
-use binomials_line::*;
-mod binomials_line {
-    use core::ops::{AddAssign, SubAssign};
+use gcd::*;
+mod gcd {
+    use core::ops::Rem;
 
-    use crate::values::One;
+    use crate::{Abs, Zero};
 
-    #[derive(Clone, Debug)]
-    pub struct BinomialsLine<T>(Vec<T>, usize);
-
-    impl<T: One> Default for BinomialsLine<T> {
-        fn default() -> Self {
-            Self(vec![T::one()], 0)
+    // https://en.wikipedia.org/wiki/Euclidean_algorithm
+    // gcd(a, b) = gcd(a - b, a): gcd(14, 10) = gcd(4, 10)
+    pub fn gcd<T>(lhs: T, rhs: T) -> T
+    where
+        T: Abs + Clone + Rem<Output = T> + Zero,
+    {
+        if rhs.is_zero() {
+            lhs.abs()
+        } else {
+            gcd(rhs.clone(), lhs % rhs)
         }
     }
+}
 
-    impl<T> BinomialsLine<T> {
-        pub fn new() -> Self
-        where
-            T: One,
-        {
-            Self::default()
-        }
+// ========
 
-        pub fn goto_n(&mut self, n: usize)
-        where
-            T: Copy + AddAssign + SubAssign,
-        {
-            if self.1 < n {
-                while self.1 < n {
-                    if self.1 & 1 == 1 {
-                        self.0.push(*self.0.last().unwrap());
-                    }
-                    self.1 += 1;
-                    for j in (1..=self.1 / 2).rev() {
-                        let data = &mut self.0[..];
-                        data[j] += data[j - 1];
-                    }
-                }
-            } else if self.1 > n {
-                while self.1 > n {
-                    if self.1 & 1 == 0 {
-                        let _ = self.0.pop();
-                    }
-                    self.1 -= 1;
-                    for j in 1..=self.1 / 2 {
-                        let data = &mut self.0[..];
-                        data[j] -= data[j - 1];
-                    }
-                }
-            }
-        }
+use lcm::*;
+mod lcm {
+    use core::ops::{Div, Mul, Rem};
 
-        pub fn line(&self) -> &[T] {
-            &self.0
-        }
+    use crate::{gcd, Abs, Zero};
 
-        // n\k 0  1  2  3  4  5
-        // 0   1
-        // 1   1  1
-        // 2   1  2  1
-        // 3   1  3  3  1
-        // 4   1  4  6  4  1
-        // 5   1  5 10 10  5  1
-        pub fn compute(&mut self, n: usize, k: usize) -> T
-        where
-            T: Copy + AddAssign + SubAssign,
-        {
-            self.goto_n(n);
-            if k <= n / 2 {
-                self.0[k]
+    pub fn lcm<T>(lhs: T, rhs: T) -> T
+    where
+        T: Abs + Clone + Div<Output = T> + Mul<Output = T> + Rem<Output = T> + Zero,
+    {
+        lhs.clone() * rhs.clone() / gcd(lhs, rhs)
+    }
+}
+
+// ========
+
+use into_range::*;
+mod into_range {
+    use core::ops::RangeBounds;
+
+    pub trait IsInRange: Sized {
+        fn into_range<R: RangeBounds<Self>>(self, range: R) -> Option<Self>;
+    }
+
+    impl<T> IsInRange for T
+    where
+        T: Copy + Ord + PartialOrd,
+    {
+        fn into_range<R: RangeBounds<Self>>(self, range: R) -> Option<Self> {
+            if range.contains(&self) {
+                Some(self)
             } else {
-                self.0[n - k]
+                None
             }
         }
     }
@@ -1595,79 +1686,696 @@ mod binomials_line {
 
 // ========
 
-use binomials_table::*;
-mod binomials_table {
-    use core::ops::Add;
+use log2::*;
+mod log2 {
+    pub trait Log2
+    where
+        Self: Sized,
+    {
+        fn log2_floor(self) -> u32;
+        fn log2_ceil(self) -> u32;
+        fn round_log2_floor(self) -> Self;
+        fn round_log2_ceil(self) -> Self;
+    }
 
-    use crate::values::{One, Zero};
+    macro_rules! def {
+        ( $($type:ty),* ) => {
+            $(
+                impl Log2 for $type {
+                    fn log2_floor(self) -> u32 {
+                        use core::mem::size_of;
+                        assert!(self > 0);
+                        (size_of::<Self>() * 8) as u32 - self.leading_zeros() - 1
+                    }
 
-    #[derive(Clone, Debug)]
-    pub struct BinomialsTable<T>(Vec<T>, usize);
+                    fn log2_ceil(self) -> u32 {
+                        assert!(self > 0);
+                        let floor = self.log2_floor();
+                        let round_floor = 1 << floor;
+                        if self == round_floor {
+                            floor
+                        } else {
+                            floor + 1
+                        }
+                    }
 
-    impl<T: One> Default for BinomialsTable<T> {
-        fn default() -> Self {
-            Self(vec![T::one(), T::one()], 2)
+                    fn round_log2_floor(self) -> Self {
+                        1 << self.log2_floor()
+                    }
+
+                    fn round_log2_ceil(self) -> Self {
+                        1 << self.log2_ceil()
+                    }
+                }
+            )*
+        };
+    }
+    def!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+}
+
+// ========
+
+use log10::*;
+mod log10 {
+    pub trait PowersOf10
+    where
+        Self: Sized,
+    {
+        fn powers_of_10() -> &'static [Self];
+    }
+
+    pub trait Log10
+    where
+        Self: Sized,
+    {
+        fn log10_floor(self) -> u32;
+        fn log10_ceil(self) -> u32;
+        fn round_log10_floor(self) -> Self;
+        fn round_log10_ceil(self) -> Self;
+    }
+
+    pub trait Log10MinWith
+    where
+        Self: Sized,
+    {
+        fn log10_floor_min_with(self, rhs: u32) -> u32;
+        fn log10_ceil_min_with(self, rhs: u32) -> u32;
+    }
+
+    macro_rules! def {
+        ( $ty:ty, $const:ident, [$($tt:tt)*] ) => { def!($ty, $const, [$($tt)*], 1, [1]); };
+        ( $ty:ty, $const:ident, [$first:tt $($rest:tt)*], $value:expr, [$($pows:expr),*] ) => {
+            def!($ty, $const, [$($rest)*], $value * 10, [$($pows,)* $value * 10]);
+        };
+        ( $ty:ty, $const:ident, [], $value:expr, [$($pows:expr),*] ) => {
+            pub const $const: &[$ty] = &[ $($pows),* ];
+            impl PowersOf10 for $ty {
+                fn powers_of_10() -> &'static [Self] {
+                    $const
+                }
+            }
+        };
+    }
+    def!(i8, I8_POWERS_OF_10, [,,]);
+    def!(u8, U8_POWERS_OF_10, [,,]);
+    def!(i16, I16_POWERS_OF_10, [,,,,]);
+    def!(u16, U16_POWERS_OF_10, [,,,,]);
+    def!(i32, I32_POWERS_OF_10, [,,,,,,,,,]);
+    def!(u32, U32_POWERS_OF_10, [,,,,,,,,,]);
+    def!(i64, I64_POWERS_OF_10, [,,,,,,,,,,,,,,,,,,]);
+    def!(u64, U64_POWERS_OF_10, [,,,,,,,,,,,,,,,,,,,]);
+    def!(i128, I128_POWERS_OF_10, [,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,]);
+    def!(u128, U128_POWERS_OF_10, [,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,]);
+
+    #[cfg(target_pointer_width = "32")]
+    def!(isize, ISIZE_POWERS_OF_10, [,,,,,,,,,]);
+    #[cfg(target_pointer_width = "64")]
+    def!(isize, ISIZE_POWERS_OF_10, [,,,,,,,,,,,,,,,,,,]);
+
+    #[cfg(target_pointer_width = "32")]
+    def!(usize, USIZE_POWERS_OF_10, [,,,,,,,,,]);
+    #[cfg(target_pointer_width = "64")]
+    def!(usize, USIZE_POWERS_OF_10, [,,,,,,,,,,,,,,,,,,,]);
+
+    macro_rules! def {
+        ( $($type:ty),* ) => {
+            $(
+                impl Log10 for $type {
+                    fn log10_floor(self) -> u32 {
+                        assert!(self > 0);
+                        let powers = Self::powers_of_10();
+                        powers
+                            .binary_search(&self)
+                            .map_or_else(|err| err - 1, |ok| ok) as u32
+                    }
+
+                    fn log10_ceil(self) -> u32 {
+                        assert!(self > 0);
+                        let powers = Self::powers_of_10();
+                        powers.binary_search(&self).map_or_else(|err| err, |ok| ok) as u32
+                    }
+
+                    fn round_log10_floor(self) -> Self {
+                        Self::powers_of_10()[self.log10_floor() as usize]
+                    }
+
+                    fn round_log10_ceil(self) -> Self {
+                        Self::powers_of_10()[self.log10_ceil() as usize]
+                    }
+                }
+
+                impl Log10MinWith for $type {
+                    fn log10_floor_min_with(self, rhs: u32) -> u32 {
+                        assert!(self > 0);
+                        let powers = &Self::powers_of_10()[0..=rhs as usize];
+                        powers
+                            .binary_search(&self)
+                            .map_or_else(|err| err - 1, |ok| ok) as u32
+                    }
+
+                    fn log10_ceil_min_with(self, rhs: u32) -> u32 {
+                        assert!(self > 0);
+                        let powers = &Self::powers_of_10()[0..=rhs as usize];
+                        powers
+                            .binary_search(&self)
+                            .map_or_else(|err| (err as u32).min(rhs), |ok| ok as u32)
+                    }
+                }
+            )*
+        };
+    }
+    def!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+}
+
+// ========
+
+use min_max::*;
+mod min_max {
+    use core::cmp::{max, min, Ordering};
+
+    pub fn min_by<T, F: FnOnce(&T, &T) -> Ordering>(lhs: T, rhs: T, compare: F) -> T {
+        match compare(&lhs, &rhs) {
+            Ordering::Less | Ordering::Equal => lhs,
+            Ordering::Greater => rhs,
         }
     }
 
-    impl<T: One> BinomialsTable<T> {
-        pub fn new(n: usize) -> Self
+    pub fn max_by<T, F: FnOnce(&T, &T) -> Ordering>(lhs: T, rhs: T, compare: F) -> T {
+        match compare(&lhs, &rhs) {
+            Ordering::Less | Ordering::Equal => rhs,
+            Ordering::Greater => lhs,
+        }
+    }
+
+    pub fn min_max_by<T, F: FnOnce(&T, &T) -> Ordering>(lhs: T, rhs: T, compare: F) -> (T, T) {
+        match compare(&lhs, &rhs) {
+            Ordering::Less | Ordering::Equal => (lhs, rhs),
+            Ordering::Greater => (rhs, lhs),
+        }
+    }
+
+    pub fn min_by_key<T, F: FnMut(&T) -> K, K: Ord>(v1: T, v2: T, mut f: F) -> T {
+        min_by(v1, v2, |v1, v2| f(v1).cmp(&f(v2)))
+    }
+
+    pub fn max_by_key<T, F: FnMut(&T) -> K, K: Ord>(v1: T, v2: T, mut f: F) -> T {
+        max_by(v1, v2, |v1, v2| f(v1).cmp(&f(v2)))
+    }
+
+    pub fn min_max_by_key<T, F: FnMut(&T) -> K, K: Ord>(v1: T, v2: T, mut f: F) -> (T, T) {
+        min_max_by(v1, v2, |v1, v2| f(v1).cmp(&f(v2)))
+    }
+
+    pub trait IteratorMinMax {
+        type Item;
+
+        fn min_max(self) -> Option<(Self::Item, Self::Item)>
         where
-            T: Add<Output = T> + Copy + One + Zero,
-        {
-            let mut binomials = Self::default();
-            binomials.resize(n);
-            binomials
-        }
+            Self::Item: Ord;
 
-        pub fn line_offset(line: usize) -> usize {
-            (line / 2 + 1) * ((line + 1) / 2)
-        }
-
-        pub fn half_triangle(&self) -> &[T] {
-            &self.0
-        }
-
-        pub fn resize(&mut self, n: usize)
+        fn min_max_by<F>(self, compare: F) -> Option<(Self::Item, Self::Item)>
         where
-            T: Add<Output = T> + Copy + One + Zero,
+            F: Clone + FnMut(&Self::Item, &Self::Item) -> Ordering;
+
+        fn min_max_by_key<B, F>(self, f: F) -> Option<(Self::Item, Self::Item)>
+        where
+            B: Ord,
+            F: Clone + FnMut(&Self::Item) -> B;
+    }
+
+    impl<I> IteratorMinMax for I
+    where
+        I: IntoIterator,
+        I::Item: Clone,
+    {
+        type Item = I::Item;
+
+        fn min_max(self) -> Option<(Self::Item, Self::Item)>
+        where
+            Self::Item: Ord,
         {
-            if self.1 >= n {
-                return;
-            }
-            self.0.resize(Self::line_offset(n), T::zero());
-            let data = &mut self.0[..];
-            let mut j1 = Self::line_offset(self.1 - 1);
-            for n in self.1..n {
-                let hl = (n + 1) / 2;
-                let j2 = j1 + hl;
-
-                data[j2] = T::one();
-                for j in 1..hl {
-                    data[j2 + j] = data[j1 + j - 1] + data[j1 + j];
-                }
-                if n & 1 == 0 {
-                    data[j2 + hl] = data[j1 + hl - 1] + data[j1 + hl - 1];
-                }
-
-                j1 = j2;
-            }
-            self.1 = n;
+            self.into_iter().fold(None, |acc, value| match acc {
+                Some(acc) => Some((min(acc.0, value.clone()), max(acc.1, value))),
+                None => Some((value.clone(), value)),
+            })
         }
 
-        pub fn get(&self, n: usize, k: usize) -> T
+        fn min_max_by<F>(self, compare: F) -> Option<(Self::Item, Self::Item)>
         where
-            T: Copy,
+            F: Clone + FnMut(&Self::Item, &Self::Item) -> Ordering,
         {
-            assert!(n < self.1);
-            assert!(k <= n);
-            let j = Self::line_offset(n);
-            if k <= n / 2 {
-                self.0[j + k]
+            self.into_iter().fold(None, |acc, value| match acc {
+                Some(acc) => Some((
+                    min_by(acc.0, value.clone(), compare.clone()),
+                    max_by(acc.1, value, compare.clone()),
+                )),
+                None => Some((value.clone(), value)),
+            })
+        }
+
+        fn min_max_by_key<B, F>(self, f: F) -> Option<(Self::Item, Self::Item)>
+        where
+            B: Ord,
+            F: Clone + FnMut(&Self::Item) -> B,
+        {
+            self.into_iter().fold(None, |acc, value| match acc {
+                Some(acc) => Some((
+                    min_by_key(acc.0, value.clone(), f.clone()),
+                    max_by_key(acc.1, value, f.clone()),
+                )),
+                None => Some((value.clone(), value)),
+            })
+        }
+    }
+}
+
+// ========
+
+use unsigned::*;
+mod unsigned {
+    pub trait Unsigned {}
+
+    macro_rules! def {
+        ( $($ty:ty),* ) => {
+            $( impl Unsigned for $ty {} )*
+        };
+    }
+    def!(u8, u16, u32, u64, u128, usize);
+}
+
+// ========
+
+use signed::*;
+mod signed {
+    pub trait Signed {}
+
+    macro_rules! def {
+        ( $($ty:ty),* ) => {
+            $( impl Signed for $ty {} )*
+        };
+    }
+    def!(i8, i16, i32, i64, i128, isize);
+}
+
+// ========
+
+use wrap::*;
+mod wrap {
+    use core::num::Wrapping;
+
+    pub fn wrap<T>(value: T) -> Wrapping<T> {
+        Wrapping(value)
+    }
+}
+
+// ========
+
+use vec_ext::*;
+mod vec_ext {
+    pub trait VecExt<T> {
+        fn wc(capacity: usize) -> Self;
+        fn set_or_push(&mut self, j: usize, value: T);
+    }
+
+    impl<T> VecExt<T> for Vec<T> {
+        fn wc(capacity: usize) -> Self {
+            Self::with_capacity(capacity)
+        }
+
+        fn set_or_push(&mut self, j: usize, value: T) {
+            if j == self.len() {
+                self.push(value);
             } else {
-                self.0[j + n - k]
+                self[j] = value;
             }
         }
+    }
+}
+
+// ========
+
+use into_vec::*;
+mod into_vec {
+    pub trait IntoVec<T> {
+        fn into_vec(self) -> Vec<T>;
+    }
+
+    impl<I, T> IntoVec<T> for I
+    where
+        Self: Sized,
+        I: IntoIterator<Item = T>,
+    {
+        fn into_vec(self) -> Vec<T> {
+            self.into_iter().collect()
+        }
+    }
+}
+
+// ========
+
+use to_iterator::*;
+mod to_iterator {
+    pub trait ToIterator: Clone + IntoIterator {
+        fn to_iter(&self) -> Self::IntoIter;
+    }
+
+    impl<T> ToIterator for T
+    where
+        T: Clone + IntoIterator,
+    {
+        fn to_iter(&self) -> Self::IntoIter {
+            self.clone().into_iter()
+        }
+    }
+}
+
+// ========
+
+use slice_from_iterator::*;
+mod slice_from_iterator {
+    pub trait SliceFromIterator {
+        type Item;
+        fn from_iter<I: Iterator<Item = Self::Item>>(&mut self, iter: I) -> usize;
+    }
+
+    impl<T> SliceFromIterator for [T] {
+        type Item = T;
+        fn from_iter<I: Iterator<Item = Self::Item>>(&mut self, iter: I) -> usize {
+            let mut len = 0;
+            for value in iter {
+                assert!(len < self.len());
+                self[len] = value;
+                len += 1;
+            }
+            len
+        }
+    }
+}
+
+// ========
+
+use sortable::*;
+mod sortable {
+    use core::cmp::Ordering;
+
+    pub trait Sortable {
+        type Item;
+
+        fn sort_rev(&mut self)
+        where
+            Self::Item: Ord;
+
+        fn sort_unstable_rev(&mut self)
+        where
+            Self::Item: Ord;
+
+        fn insertion_sort(&mut self)
+        where
+            Self::Item: Ord;
+
+        fn insertion_sort_by<F>(&mut self, compare: F)
+        where
+            F: FnMut(&Self::Item, &Self::Item) -> Ordering;
+
+        fn insertion_sort_by_key<K, F>(&mut self, f: F)
+        where
+            F: FnMut(&Self::Item) -> K,
+            K: Ord;
+
+        fn insertion_sort_rev(&mut self)
+        where
+            Self::Item: Ord,
+        {
+            self.insertion_sort_by(|lhs, rhs| rhs.cmp(lhs))
+        }
+    }
+
+    impl<T> Sortable for [T]
+    where
+        T: Copy,
+    {
+        type Item = T;
+
+        fn sort_rev(&mut self)
+        where
+            Self::Item: Ord,
+        {
+            self.sort_by(|lhs, rhs| rhs.cmp(lhs))
+        }
+
+        fn sort_unstable_rev(&mut self)
+        where
+            Self::Item: Ord,
+        {
+            self.sort_unstable_by(|lhs, rhs| rhs.cmp(lhs))
+        }
+
+        // works faster on an array with a length of less than 8 elements
+        fn insertion_sort(&mut self)
+        where
+            Self::Item: Ord,
+        {
+            self.insertion_sort_by(|lhs, rhs| lhs.cmp(rhs));
+        }
+
+        fn insertion_sort_by<F>(&mut self, mut compare: F)
+        where
+            F: FnMut(&Self::Item, &Self::Item) -> Ordering,
+        {
+            for i in 1..self.len() {
+                let key = self[i];
+                let mut j = i - 1;
+                if compare(&self[j], &key) == Ordering::Greater {
+                    self[i] = self[j];
+                    while j > 0 && compare(&self[j - 1], &key) == Ordering::Greater {
+                        self[j] = self[j - 1];
+                        j -= 1;
+                    }
+                    self[j] = key;
+                }
+            }
+        }
+
+        fn insertion_sort_by_key<K, F>(&mut self, mut f: F)
+        where
+            F: FnMut(&Self::Item) -> K,
+            K: Ord,
+        {
+            self.insertion_sort_by(|lhs, rhs| f(lhs).cmp(&f(rhs)))
+        }
+    }
+}
+
+// ========
+
+use sums::*;
+mod sums {
+    use core::iter::FusedIterator;
+    use core::ops::AddAssign;
+
+    use crate::Zero;
+
+    pub trait Sums {
+        type Output;
+        fn sums(self) -> Self::Output;
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct SumsIter<T, I>(T, I);
+
+    impl<T, I> SumsIter<T, I>
+    where
+        T: Zero,
+        I: Iterator<Item = T>,
+    {
+        pub fn new(iter: I) -> Self {
+            Self(T::zero(), iter)
+        }
+    }
+
+    impl<T, I> Sums for I
+    where
+        T: Zero,
+        I: IntoIterator<Item = T>,
+    {
+        type Output = SumsIter<T, I::IntoIter>;
+        fn sums(self) -> Self::Output {
+            SumsIter::new(self.into_iter())
+        }
+    }
+
+    impl<T, I> Iterator for SumsIter<T, I>
+    where
+        T: AddAssign + Clone,
+        I: Iterator<Item = T>,
+    {
+        type Item = T;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if let Some(next) = self.1.next() {
+                self.0 += next;
+                Some(self.0.clone())
+            } else {
+                None
+            }
+        }
+    }
+
+    impl<T, I> FusedIterator for SumsIter<T, I>
+    where
+        T: AddAssign + Clone,
+        I: Iterator<Item = T>,
+    {
+    }
+}
+
+// ========
+
+use prods::*;
+mod prods {
+    use core::iter::FusedIterator;
+    use core::ops::MulAssign;
+
+    use crate::One;
+
+    pub trait Prods {
+        type Output;
+        fn prods(self) -> Self::Output;
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct ProdsIter<T, I>(T, I);
+
+    impl<T, I> ProdsIter<T, I>
+    where
+        T: One,
+        I: Iterator<Item = T>,
+    {
+        pub fn new(iter: I) -> Self {
+            Self(T::one(), iter)
+        }
+    }
+
+    impl<T, I> Prods for I
+    where
+        T: One,
+        I: IntoIterator<Item = T>,
+    {
+        type Output = ProdsIter<T, I::IntoIter>;
+        fn prods(self) -> Self::Output {
+            ProdsIter::new(self.into_iter())
+        }
+    }
+
+    impl<T, I> Iterator for ProdsIter<T, I>
+    where
+        T: MulAssign + Clone,
+        I: Iterator<Item = T>,
+    {
+        type Item = T;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if let Some(next) = self.1.next() {
+                self.0 *= next;
+                Some(self.0.clone())
+            } else {
+                None
+            }
+        }
+    }
+
+    impl<T, I> FusedIterator for ProdsIter<T, I>
+    where
+        T: MulAssign + Clone,
+        I: Iterator<Item = T>,
+    {
+    }
+}
+
+// ========
+
+use collections::*;
+mod collections {
+    #[macro_export]
+    macro_rules! replace_expr {
+        ($_t:tt $sub:expr) => {
+            $sub
+        };
+    }
+
+    #[macro_export]
+    macro_rules! bts {
+        () => {
+            std::collections::BTreeSet::new()
+        };
+        ($($x:expr),+ $(,)?) => {{
+            let mut collection = std::collections::BTreeSet::new();
+            $( let _ = collection.insert($x); )+
+            collection
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! btm {
+        () => {
+            std::collections::BTreeMap::new()
+        };
+        ($(($k:expr, $v:expr)),+ $(,)?) => {{
+            let mut collection = std::collections::BTreeMap::new();
+            $( let _ = collection.insert($k, $v); )+
+            collection
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! hs {
+        () => {
+            std::collections::HashSet::new()
+        };
+        ($($x:expr),+ $(,)?) => {{
+            let mut collection = std::collections::HashSet::with_capacity([$(crate::replace_expr!($x ())),+].len());
+            $( let _ = collection.insert($x); )+
+            collection
+        }};
+    }
+
+    #[macro_export]
+    macro_rules! hm {
+        () => {
+            std::collections::HashMap::new()
+        };
+        ($(($k:expr, $v:expr)),+ $(,)?) => {{
+            let mut collection = std::collections::HashMap::with_capacity([$(crate::replace_expr!($v ())),+].len());
+            $( let _ = collection.insert($k, $v); )+
+            collection
+        }};
+    }
+}
+
+// ========
+
+use ceil::*;
+mod ceil {
+    use core::ops::{Add, Div, Sub};
+
+    use crate::{DivEuclid, One};
+
+    #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    pub struct Ceil<T>(pub T);
+
+    impl<T> Div<T> for Ceil<T>
+    where
+        T: Add<Output = T> + Clone + DivEuclid + One + Sub<Output = T>,
+    {
+        type Output = T;
+
+        fn div(self, rhs: T) -> Self::Output {
+            (self.0 + rhs.clone() - T::one()).div_euclid(rhs)
+        }
+    }
+
+    pub fn ceil<T>(value: T) -> Ceil<T> {
+        Ceil(value)
     }
 }
 
@@ -1677,15 +2385,11 @@ use binomial::*;
 mod binomial {
     use core::cmp::PartialOrd;
     use core::ops::{Add, AddAssign, Div, Mul, Sub};
+    use std::cmp::min;
+    use std::iter::successors;
 
     use crate::{Five, MulDiv, One, Ten, Three, Two, Zero};
 
-    // (n | k) = n! / (k! * (n - k)!)
-    // (n | 0) = 1
-    // (n | k + 1) = (n | k) * (n - k) / (k - 1)
-    // (5 | 0) = 1
-    // (5 | 1) = 1 * 5 / 1 = 5
-    // (5 | 2) = 5 * 4 / 2 = 10
     pub fn binomial<T>(n: T, k: T) -> T
     where
         T: Add<Output = T>
@@ -1698,21 +2402,874 @@ mod binomial {
             + Sub<Output = T>
             + Zero,
     {
-        use core::cmp::min;
-        if k > n {
-            return T::zero();
-        }
-        let kf = min(k, n - k);
+        *Binomial::with(n, k).get()
+    }
 
-        let one = T::one();
-        let mut p = n - kf + one;
-        let mut k = one;
-        let mut value = one;
-        while k <= kf {
-            value = value.mul_div(p, k);
-            k += one;
-            p += one;
+    // (n | k) = n! / (k! * (n - k)!)
+    // (n | 0) = (n | n) = 1
+    // (n - 1 | k) = (n | k) * (n - k) / n
+    // (n + 1 | k) = (n | k) * (n + 1) / (n + 1 - k)
+    // (n | k - 1) = (n | k) * k / (n + 1 - k)
+    // (n | k + 1) = (n | k) * (n - k) / (k + 1)
+    // n\k  0  1  2  3  4  5
+    // 0    1
+    // 1    1  1
+    // 2    1  2  1
+    // 3    1  3  3  1
+    // 4    1  4  6  4  1
+    // 5    1  5 10 10  5  1
+    #[derive(Clone, Copy, Debug)]
+    pub struct Binomial<T> {
+        value: T,
+        n: T,
+        k: T,
+    }
+
+    impl<T> Binomial<T> {
+        pub fn get(&self) -> &T {
+            &self.value
         }
-        value
+
+        pub fn n(&self) -> &T {
+            &self.n
+        }
+
+        pub fn k(&self) -> &T {
+            &self.k
+        }
+    }
+
+    impl<T> Binomial<T>
+    where
+        T: One + Copy + Zero,
+    {
+        pub fn new() -> Self {
+            Self {
+                value: T::one(),
+                n: T::zero(),
+                k: T::zero(),
+            }
+        }
+
+        pub fn with_n(n: T) -> Self {
+            Self {
+                value: T::one(),
+                n,
+                k: T::zero(),
+            }
+        }
+
+        pub fn with_nk(nk: T) -> Self {
+            Self {
+                value: T::one(),
+                n: nk,
+                k: nk,
+            }
+        }
+    }
+
+    impl<T> Binomial<T>
+    where
+        T: Add<Output = T> + AddAssign + Copy + MulDiv + One + PartialOrd + Sub<Output = T> + Zero,
+    {
+        pub fn with(n: T, k: T) -> Self {
+            if k > n {
+                Self {
+                    value: T::zero(),
+                    n,
+                    k,
+                }
+            } else if k <= n - k {
+                let mut coeff = Self::with_n(n);
+                let mut p = T::zero();
+                while p < k {
+                    coeff = coeff.inc_k();
+                    p += T::one();
+                }
+                coeff
+            } else {
+                let mut coeff = Self::with_nk(k);
+                let mut p = k;
+                while p < n {
+                    coeff = coeff.inc_n();
+                    p += T::one();
+                }
+                coeff
+            }
+        }
+    }
+
+    impl<T> Binomial<T>
+    where
+        T: Copy + Sub<Output = T> + Ord,
+    {
+        pub fn left(&self) -> Self {
+            Self {
+                value: self.value,
+                n: self.n,
+                k: min(self.k, self.n - self.k),
+            }
+        }
+    }
+
+    impl<T> Binomial<T>
+    where
+        T: Add<Output = T> + Copy + MulDiv + One + Sub<Output = T> + Zero,
+    {
+        pub fn line(n: T) -> impl Iterator<Item = Binomial<T>> {
+            successors(Some(Self::with_n(n)), |coeff| Some(coeff.inc_k()))
+        }
+
+        // 0:  1  1  1  1  1
+        // 1:  1  2  3  4  5
+        // 2:  1  3  6 10 15 triangle number
+        // 2:  1  4 10 20 35 tetrahedral numbers
+        pub fn column(nk: T) -> impl Iterator<Item = Binomial<T>> {
+            successors(Some(Self::with_nk(nk)), |coeff| Some(coeff.inc_n()))
+        }
+
+        pub fn diag(n: T) -> impl Iterator<Item = Binomial<T>> {
+            successors(Some(Self::with_n(n)), |coeff| Some(coeff.inc_nk()))
+        }
+    }
+
+    impl<T> Binomial<T>
+    where
+        T: Add<Output = T> + Copy + MulDiv + One + Sub<Output = T>,
+    {
+        pub fn dec_n(&self) -> Binomial<T> {
+            Self {
+                value: self.value.mul_div(self.n - self.k, self.n),
+                n: self.n - T::one(),
+                k: self.k,
+            }
+        }
+
+        pub fn inc_n(&self) -> Binomial<T> {
+            Self {
+                value: self
+                    .value
+                    .mul_div(self.n + T::one(), self.n + T::one() - self.k),
+                n: self.n + T::one(),
+                k: self.k,
+            }
+        }
+
+        pub fn dec_nk(&self) -> Binomial<T> {
+            Self {
+                value: self.value.mul_div(self.k, self.n),
+                n: self.n - T::one(),
+                k: self.k - T::one(),
+            }
+        }
+
+        pub fn inc_nk(&self) -> Binomial<T> {
+            Self {
+                value: self.value.mul_div(self.n + T::one(), self.k + T::one()),
+                n: self.n + T::one(),
+                k: self.k + T::one(),
+            }
+        }
+
+        pub fn dec_k(&self) -> Binomial<T> {
+            Self {
+                value: self.value.mul_div(self.k, self.n + T::one() - self.k),
+                n: self.n,
+                k: self.k - T::one(),
+            }
+        }
+
+        pub fn inc_k(&self) -> Binomial<T> {
+            Self {
+                value: self.value.mul_div(self.n - self.k, self.k + T::one()),
+                n: self.n,
+                k: self.k + T::one(),
+            }
+        }
     }
 }
+
+// ========
+
+use factorial::*;
+mod factorial {
+    pub trait Factorial {
+        fn factorial(value: usize) -> Self;
+    }
+
+    macro_rules! def {
+        ( $ty:ty, [$($list:tt)*] ) => {
+            def!(@impl $ty, 0, [$($list)*,], [], [
+                1,
+                1,
+                2,
+                6,
+                24,
+                120,
+                720,
+                5_040,
+                40_320,
+                362_880,
+                3_628_800,
+                39_916_800,
+                479_001_600,
+                6_227_020_800,
+                87_178_291_200,
+                1_307_674_368_000,
+                20_922_789_888_000,
+                355_687_428_096_000,
+                6_402_373_705_728_000,
+                121_645_100_408_832_000,
+                2_432_902_008_176_640_000,
+                51_090_942_171_709_440_000,
+                1_124_000_727_777_607_680_000,
+                25_852_016_738_884_976_640_000,
+                620_448_401_733_239_439_360_000,
+                15_511_210_043_330_985_984_000_000,
+                403_291_461_126_605_635_584_000_000,
+                10_888_869_450_418_352_160_768_000_000,
+                304_888_344_611_713_860_501_504_000_000,
+                8_841_761_993_739_701_954_543_616_000_000,
+                265_252_859_812_191_058_636_308_480_000_000,
+                8_222_838_654_177_922_817_725_562_880_000_000,
+                263_130_836_933_693_530_167_218_012_160_000_000,
+                8_683_317_618_811_886_495_518_194_401_280_000_000,
+                295_232_799_039_604_140_847_618_609_643_520_000_000
+            ]);
+        };
+        (
+            @impl $ty:ty, $len:expr,
+            [$item:tt $($list:tt)*],
+            [$($result:literal),*],
+            [$value:literal $(, $values:literal)*]
+        ) => {
+            def!(@impl $ty, $len + 1, [$($list)*], [$($result,)* $value], [$($values),*]);
+        };
+        (
+            @impl $ty:ty, $len:expr,
+            [],
+            [$($result:literal),*],
+            [$($values:literal),*]
+        ) => {
+            impl Factorial for $ty {
+                fn factorial(value: usize) -> Self {
+                    let result: [$ty; $len] = [$($result),*];
+                    result[value]
+                }
+            }
+        };
+    }
+
+    def!(i32, [,,,,,,,,,,,,]);
+    def!(u32, [,,,,,,,,,,,,]);
+    def!(i64, [,,,,,,,,,,,,,,,,,,,,]);
+    def!(u64, [,,,,,,,,,,,,,,,,,,,,]);
+    def!(i128, [,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,]);
+    def!(u128, [,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,]);
+}
+
+// ========
+
+use factorials::*;
+mod factorials {
+    use core::ops::{AddAssign, MulAssign};
+
+    use crate::One;
+
+    #[derive(Clone, Debug)]
+    pub struct Factorials<T> {
+        data: Vec<T>,
+        mult1: T,
+        mult2: T,
+    }
+
+    impl<T: One> Factorials<T> {
+        pub fn new() -> Self {
+            Self {
+                data: vec![T::one()],
+                mult1: T::one(),
+                mult2: T::one(),
+            }
+        }
+    }
+
+    impl<T: One> Factorials<T> {
+        pub fn get(&mut self, n: usize) -> T
+        where
+            T: Copy + MulAssign + AddAssign + One,
+        {
+            while n >= self.data.len() {
+                self.mult2 *= self.mult1;
+                self.mult1 += T::one();
+                self.data.push(self.mult2);
+            }
+            self.data[n]
+        }
+    }
+}
+
+// ========
+
+use factorize::*;
+mod factorize {
+    use core::ops::{AddAssign, BitAnd, DivAssign, Mul, Rem, ShrAssign};
+
+    use crate::{Five, One, Three, TrailingZeros, Two, Zero};
+
+    pub fn factorize_to_vec<T: Factorizable>(value: T) -> Vec<(T, usize)> {
+        let mut factorization = Vec::new();
+        factorize(value, |pair| factorization.push(pair));
+        factorization
+    }
+
+    pub fn count_multipliers<T: Factorizable>(value: T) -> usize {
+        let mut count = 0;
+        factorize(value, |pair| count += pair.1);
+        count
+    }
+
+    pub fn count_multiplier_primes<T: Factorizable>(value: T) -> usize {
+        let mut count = 0;
+        factorize(value, |_| count += 1);
+        count
+    }
+
+    pub trait Factorizable:
+        AddAssign
+        + BitAnd<Output = Self>
+        + Copy
+        + DivAssign
+        + Five
+        + Mul<Output = Self>
+        + One
+        + PartialEq
+        + PartialOrd
+        + Rem<Output = Self>
+        + ShrAssign<u32>
+        + Three
+        + TrailingZeros
+        + Two
+        + Zero
+    {
+    }
+
+    impl<T> Factorizable for T where
+        T: AddAssign
+            + BitAnd<Output = T>
+            + Copy
+            + DivAssign
+            + Five
+            + Mul<Output = T>
+            + One
+            + PartialEq
+            + PartialOrd
+            + Rem<Output = T>
+            + ShrAssign<u32>
+            + Three
+            + TrailingZeros
+            + Two
+            + Zero
+    {
+    }
+
+    pub fn factorize<T: Factorizable, F: FnMut((T, usize))>(mut value: T, mut func: F) {
+        if (value & T::one()).is_zero() {
+            let pow2 = value.trailing_zeros();
+            value >>= pow2;
+            func((T::two(), pow2 as usize));
+        }
+
+        {
+            let mut pow3 = 0;
+            while (value % T::three()).is_zero() {
+                pow3 += 1;
+                value /= T::three();
+            }
+            if pow3 > 0 {
+                func((T::three(), pow3));
+            }
+        }
+
+        let mut divisor: T = T::five();
+        while divisor * divisor <= value {
+            for _ in 0..2 {
+                let mut pow = 0;
+                while (value % divisor).is_zero() {
+                    pow += 1;
+                    value /= divisor;
+                }
+                if pow > 0 {
+                    func((divisor, pow));
+                }
+                divisor += T::two();
+            }
+            divisor += T::two();
+        }
+
+        if !value.is_one() {
+            func((value, 1));
+        }
+    }
+}
+
+// ========
+
+use primes::*;
+mod primes {
+    use core::iter::FusedIterator;
+
+    use crate::DedupCount;
+
+    #[derive(Clone, Debug)]
+    pub struct Primes {
+        sieve: Vec<usize>,
+        len: usize,
+    }
+
+    impl Primes {
+        pub fn new(len: usize) -> Self {
+            let odds_len = len / 2;
+            let mut sieve = vec![0; odds_len];
+            let half = (len as f64).sqrt().ceil() as usize;
+            for j in (3..half).step_by(2) {
+                if sieve[j / 2] == 0 {
+                    for k in (j * j..len).step_by(2 * j) {
+                        if sieve[k / 2] == 0 {
+                            sieve[k / 2] = j;
+                        }
+                    }
+                }
+            }
+            Self { sieve, len }
+        }
+
+        pub fn odds_sieve(&self) -> &[usize] {
+            &self.sieve
+        }
+
+        pub fn get_sieve_value(&self, value: usize) -> usize {
+            if value < 4 {
+                0
+            } else if value & 1 == 0 {
+                2
+            } else {
+                self.sieve[value / 2]
+            }
+        }
+
+        pub fn is_prime(&self, value: usize) -> bool {
+            if value < 3 {
+                value == 2
+            } else {
+                value & 1 == 1 && self.sieve[value / 2] == 0
+            }
+        }
+
+        pub fn iter(&self) -> PrimesIter<'_> {
+            PrimesIter::new(self, 0)
+        }
+
+        pub fn iter_from(&self, from: usize) -> PrimesIter<'_> {
+            PrimesIter::new(self, from)
+        }
+
+        // f(7) = [ 7 ]
+        // f(8) = [ 2 2 2 ]
+        // f(9) = [ 3 3 ]
+        pub fn factorize(&self, value: usize) -> PrimesFactorizeIter<'_> {
+            assert!(value < self.len);
+            PrimesFactorizeIter::new(self, value)
+        }
+
+        // f( 7) = 2: ( N[7] + 1 )
+        // f( 8) = 4: ( N[2 2 2] + 1 )
+        // f(12) = 6: ( N[2 2] + 1 ) * ( N[3] + 1 )
+        pub fn num_divisors(&self, value: usize) -> usize {
+            let factorization = self.factorize(value);
+            factorization
+                .dedup_count()
+                .map(|(_, count)| count + 1)
+                .product()
+        }
+
+        // num of coprime with n before n
+        // f(7) = 6 : 1 2 3 4 5 6
+        // f(8) = 4 : 1 - 3 - 5 - 7
+        // f(9) = 6 : 1 2 - 4 5 - 7 8
+        pub fn eulers_phi(&self, value: usize) -> usize {
+            if value == 1 {
+                return 0;
+            }
+            let factorization = self.factorize(value);
+            factorization.dedup_count().fold(value, |mult, (prime, _)| {
+                ((mult as u64) * (prime - 1) as u64 / prime as u64) as usize
+            })
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct PrimesIter<'a>(&'a Primes, usize);
+
+    impl<'a> PrimesIter<'a> {
+        pub fn new(sieve: &'a Primes, from: usize) -> Self {
+            Self(sieve, if from < 3 { 0 } else { from / 2 })
+        }
+    }
+
+    impl Iterator for PrimesIter<'_> {
+        type Item = usize;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.1 == 0 {
+                if self.0.len > 2 {
+                    self.1 = 1;
+                    Some(2)
+                } else {
+                    None
+                }
+            } else {
+                while self.1 < self.0.sieve.len() {
+                    if self.0.sieve[self.1] != 0 {
+                        self.1 += 1;
+                    } else {
+                        let item = self.1;
+                        self.1 += 1;
+                        return Some(item * 2 + 1);
+                    }
+                }
+                None
+            }
+        }
+    }
+
+    impl FusedIterator for PrimesIter<'_> {}
+
+    #[derive(Clone, Debug)]
+    pub struct PrimesFactorizeIter<'a>(&'a Primes, usize);
+
+    impl<'a> PrimesFactorizeIter<'a> {
+        pub fn new(sieve: &'a Primes, value: usize) -> Self {
+            Self(sieve, value)
+        }
+    }
+
+    impl Iterator for PrimesFactorizeIter<'_> {
+        type Item = usize;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.1 > 1 {
+                if self.1 & 1 == 0 {
+                    self.1 /= 2;
+                    Some(2)
+                } else {
+                    let divisor = self.0.sieve[self.1 / 2];
+                    if divisor != 0 {
+                        self.1 /= divisor;
+                        Some(divisor)
+                    } else {
+                        let item = self.1;
+                        self.1 = 1;
+                        Some(item)
+                    }
+                }
+            } else {
+                None
+            }
+        }
+    }
+
+    impl FusedIterator for PrimesFactorizeIter<'_> {}
+}
+
+// ========
+
+use dedup_count::*;
+mod dedup_count {
+    use core::iter::FusedIterator;
+
+    #[derive(Clone, Debug)]
+    pub struct DedupCountIter<T, I> {
+        iter: I,
+        prev: Option<(T, usize)>,
+    }
+
+    impl<T, I> DedupCountIter<T, I> {
+        pub fn new(iter: I) -> Self {
+            Self { iter, prev: None }
+        }
+    }
+
+    impl<T, I> Iterator for DedupCountIter<T, I>
+    where
+        T: Eq,
+        I: Iterator<Item = T>,
+    {
+        type Item = (T, usize);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            loop {
+                match (self.prev.take(), self.iter.next()) {
+                    (Some((prev, count)), Some(item)) => {
+                        if prev == item {
+                            self.prev = Some((prev, count + 1));
+                        } else {
+                            self.prev = Some((item, 1));
+                            return Some((prev, count));
+                        }
+                    }
+                    (Some((prev, count)), None) => {
+                        return Some((prev, count));
+                    }
+                    (None, Some(item)) => self.prev = Some((item, 1)),
+                    (None, None) => {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+
+    impl<T, I> FusedIterator for DedupCountIter<T, I>
+    where
+        T: Eq,
+        I: Iterator<Item = T>,
+    {
+    }
+
+    pub trait DedupCount {
+        type Output;
+        fn dedup_count(self) -> Self::Output;
+    }
+
+    impl<T, I> DedupCount for I
+    where
+        I: IntoIterator<Item = T>,
+    {
+        type Output = DedupCountIter<T, I::IntoIter>;
+        fn dedup_count(self) -> Self::Output {
+            DedupCountIter::new(self.into_iter())
+        }
+    }
+}
+
+// ========
+
+use combinations::*;
+mod combinations {
+    use std::ops::Div;
+
+    use crate::Factorial;
+
+    pub fn combinations<T>(k: usize, n: usize) -> T
+    where
+        T: Div<Output = T> + Factorial,
+    {
+        assert!(k <= n);
+        // https://en.wikipedia.org/wiki/Combination
+        // https://en.wikipedia.org/wiki/Binomial_coefficient
+        // https://en.wikipedia.org/wiki/Pascal's_triangle
+        // n=3, k=1:   1   2   3
+        // n=3, k=2:  12  23  31
+        // n=3, k=3: 123
+        // C^k_n = n! / [k! (n - k)!] = n!
+        T::factorial(n) / T::factorial(k) / T::factorial(n - k)
+    }
+}
+
+// ========
+
+use permutations::*;
+mod permutations {
+    use std::ops::Div;
+
+    use crate::Factorial;
+
+    pub fn permutations<T>(n: usize) -> T
+    where
+        T: Factorial,
+    {
+        // https://en.wikipedia.org/wiki/Permutation
+        // n=3: 123 132 213 231 312 321
+        // P_n = A^n_n = n! / (n - n)! = n!
+        T::factorial(n)
+    }
+
+    pub fn k_permutations<T>(k: usize, n: usize) -> T
+    where
+        T: Div<Output = T> + Factorial,
+    {
+        assert!(k <= n);
+        // https://en.wikipedia.org/wiki/Permutation#k-permutations_of_n
+        // n=3, k=1:   1   2   3
+        // n=3, k=2:  12  21  13  31  23  32
+        // n=3, k=3: 123 132 213 231 312 321
+        // A^k_n = n! / (n - k)!
+        T::factorial(n) / T::factorial(n - k)
+    }
+}
+
+// ========
+
+use subsequences::*;
+mod subsequences {
+    use core::ops::{Add, Div, Mul};
+
+    use crate::values::{One, Two};
+
+    pub fn subsequences<T>(n: T) -> T
+    where
+        T: Add<Output = T> + Clone + Div<Output = T> + Mul<Output = T> + One + Two,
+    {
+        // n=1:  1
+        // n=2:  1 2 12
+        // n=3:  1 2 3 12 23 123
+        // n=4:  1 2 3 4 12 23 34 123 234 1234
+        n.clone() * (n + T::one()) / T::two()
+    }
+}
+
+// ========
+
+use solve_ax_cong_b_mod_p::*;
+mod solve_ax_cong_b_mod_p {
+    use core::ops::{Div, Mul, Rem};
+
+    use crate::{gcd, Abs, ModularInv, Zero};
+
+    pub fn solve_ax_cong_b_mod_p<T>(a: T, b: T, p: T) -> Option<T>
+    where
+        T: Abs
+            + Clone
+            + Div<Output = T>
+            + Eq
+            + Mul<Output = T>
+            + PartialEq
+            + Rem<Output = T>
+            + ModularInv
+            + Zero,
+    {
+        // https://ru.wikipedia.org/wiki/Сравнение_по_модулю
+        let d = gcd(a.clone(), p.clone());
+        if b.clone() % d.clone() != T::zero() {
+            None
+        } else {
+            let a1 = a / d.clone();
+            let b1 = b / d.clone();
+            let p1 = p / d;
+            Some(a1.modular_inv_prime(p1) * b1)
+        }
+    }
+}
+
+// ========
+
+use modular_mul::*;
+mod modular_mul {
+    pub trait ModularMul {
+        fn modular_mul(self, other: Self, modulus: Self) -> Self;
+    }
+
+    macro_rules! def {
+        ( $low:ty, $hi:ty $(, $rest:ty)* ) => {
+            impl ModularMul for $low {
+                fn modular_mul(self, other: $low, modulus: Self) -> Self {
+                    (((self as $hi) * (other as $hi)).rem_euclid(modulus as $hi)) as $low
+                }
+            }
+            def!($hi $(, $rest)*);
+        };
+        ( $last:ty ) => {};
+    }
+
+    def!(u8, u16, u32, u64, u128);
+}
+
+// ========
+
+use modular_pow::*;
+mod modular_pow {
+    use core::ops::{Add, BitAnd, Mul, Rem, ShrAssign};
+
+    use crate::values::{One, Zero};
+
+    pub trait ModularPow<U> {
+        fn modular_pow(self, exp: U, modulus: Self) -> Self;
+    }
+
+    impl<T, U> ModularPow<U> for T
+    where
+        T: Add<Output = T>
+            + Clone
+            + Copy
+            + Mul<Output = T>
+            + One
+            + PartialOrd
+            + Rem<Output = T>
+            + Zero,
+        U: One + BitAnd<Output = U> + Clone + Copy + PartialEq<U> + PartialOrd + ShrAssign + Zero,
+    {
+        // https://doc.rust-lang.org/src/core/num/uint_macros.rs.html#1538-1558
+        fn modular_pow(self, mut exp: U, modulus: Self) -> Self {
+            if exp == U::zero() {
+                return Self::one();
+            }
+            let mut base = self;
+            let mut acc = Self::one();
+
+            while exp > U::one() {
+                if (exp & U::one()) == U::one() {
+                    acc = (acc * base) % modulus;
+                }
+                exp >>= U::one();
+                base = (base * base) % modulus;
+            }
+
+            (acc * base) % modulus
+        }
+    }
+}
+
+// ========
+
+use modular_inv::*;
+mod modular_inv {
+    use core::ops::{Add, BitAnd, Mul, Rem, ShrAssign, Sub};
+
+    use crate::modular_pow::ModularPow;
+    use crate::values::{One, Two, Zero};
+
+    pub trait ModularInv {
+        fn modular_inv_prime(self, modulo: Self) -> Self;
+    }
+
+    impl<T> ModularInv for T
+    where
+        T: Add<Output = T>
+            + BitAnd<Output = T>
+            + Clone
+            + Copy
+            + Mul<T, Output = T>
+            + One
+            + PartialOrd
+            + Rem<Output = T>
+            + ShrAssign
+            + Sub<Output = T>
+            + Two
+            + Zero,
+    {
+        // https://en.wikipedia.org/wiki/Euler%27s_theorem
+        // https://en.wikipedia.org/wiki/Fermat%27s_little_theorem
+        // p: prime && a % p > 0
+        // => a ** (p - 1) % p = 1
+        // => a ** (p - 2) % p = a ** -1 % p
+        fn modular_inv_prime(self, modulo: T) -> Self {
+            assert!(self < modulo);
+            self.modular_pow(modulo - T::two(), modulo)
+        }
+    }
+}
+
+// ========
+
+use a30::*;
+mod a30 {}
