@@ -96,28 +96,6 @@ pub fn interactor<I: ReaderExt + WriterExt>(io: &mut I, preset: Preset) {
     assert_eq!(c, 3, "{preset:?}");
 }
 
-/*
-    map1, map2, map3, map4, map5
-    filter1, filter2, filter3, ...
-    swap, swap1, swap2, swap3, ...
-    rev, ...
-    sort, ...
-    first, ...
-    second, ...
-    third, ...
-
-    .jo() -> JoinedIter, JoinedTuple
-    .wo() -> SeparatedIter, SeparatedTuple
-    .li() -> SeparatedIter, SeparatedTuple
-    .sep(",") -> SeparatedIter, SeparatedTuple
-
-    d! { exec-on-debug }
-    Ascii<T = Vec<u8>>
-    Dec<T = Vec<u8>>
-    Io::{re}
-    Io::{wo, ln, fl, wrln, wrlnfl, wr2, ask, ans}
-*/
-
 // ========
 
 pub fn main() {
@@ -132,7 +110,6 @@ fn test_examples() {
 
 #[test]
 fn test_interactor() {
-    #[cfg(all(test, feature = "libtests"))]
     test_with_interactor(problem, |io| interactor(io, Preset {}))
 }
 
@@ -1624,6 +1601,30 @@ mod mul_div {
 
 // ========
 
+use mul_rem::*;
+mod mul_rem {
+    pub trait MulRem {
+        fn mul_rem(self, mul: Self, rem: Self) -> Self;
+    }
+
+    macro_rules! def {
+        ( $low:ty, $hi:ty $(, $rest:ty)* ) => {
+            impl MulRem for $low {
+                fn mul_rem(self, mul: Self, rem: Self) -> Self {
+                    ((self as $hi) * (mul as $hi) % (rem as $hi)) as $low
+                }
+            }
+            def!($hi $(, $rest)*);
+        };
+        ( $last:ty ) => {};
+    }
+
+    def!(u8, u16, u32, u64, u128);
+    def!(i8, i16, i32, i64, i128);
+}
+
+// ========
+
 use gcd::*;
 mod gcd {
     use core::ops::Rem;
@@ -1985,6 +1986,52 @@ mod wrap {
 
     pub fn wrap<T>(value: T) -> Wrapping<T> {
         Wrapping(value)
+    }
+}
+
+// ========
+
+use option_ext::*;
+mod option_ext {
+    pub trait OptionExt<T> {
+        fn omin(self, other: T) -> T;
+        fn omax(self, other: T) -> T;
+    }
+
+    impl<T: Ord> OptionExt<T> for Option<T> {
+        fn omin(self, other: T) -> T {
+            match self {
+                Some(value) => value.min(other),
+                None => other,
+            }
+        }
+
+        fn omax(self, other: T) -> T {
+            match self {
+                Some(value) => value.max(other),
+                None => other,
+            }
+        }
+    }
+
+    impl<T: Ord> OptionExt<Option<T>> for Option<T> {
+        fn omin(self, other: Option<T>) -> Option<T> {
+            match (self, other) {
+                (Some(value), Some(other)) => Some(value.min(other)),
+                (Some(value), None) => Some(value),
+                (None, Some(other)) => Some(other),
+                (None, None) => None,
+            }
+        }
+
+        fn omax(self, other: Option<T>) -> Option<T> {
+            match (self, other) {
+                (Some(value), Some(other)) => Some(value.max(other)),
+                (Some(value), None) => Some(value),
+                (None, Some(other)) => Some(other),
+                (None, None) => None,
+            }
+        }
     }
 }
 
@@ -3190,7 +3237,7 @@ use modular_pow::*;
 mod modular_pow {
     use core::ops::{Add, BitAnd, Mul, Rem, ShrAssign};
 
-    use crate::values::{One, Zero};
+    use crate::{MulRem, One, Zero};
 
     pub trait ModularPow<U> {
         fn modular_pow(self, exp: U, modulus: Self) -> Self;
@@ -3202,6 +3249,7 @@ mod modular_pow {
             + Clone
             + Copy
             + Mul<Output = T>
+            + MulRem
             + One
             + PartialOrd
             + Rem<Output = T>
@@ -3218,13 +3266,13 @@ mod modular_pow {
 
             while exp > U::one() {
                 if (exp & U::one()) == U::one() {
-                    acc = (acc * base) % modulus;
+                    acc = acc.mul_rem(base, modulus);
                 }
                 exp >>= U::one();
-                base = (base * base) % modulus;
+                base = base.mul_rem(base, modulus);
             }
 
-            (acc * base) % modulus
+            acc.mul_rem(base, modulus)
         }
     }
 }
@@ -3235,8 +3283,8 @@ use modular_inv::*;
 mod modular_inv {
     use core::ops::{Add, BitAnd, Mul, Rem, ShrAssign, Sub};
 
-    use crate::modular_pow::ModularPow;
-    use crate::values::{One, Two, Zero};
+    use crate::mul_rem::MulRem;
+    use crate::{ModularPow, One, Two, Zero};
 
     pub trait ModularInv {
         fn modular_inv_prime(self, modulo: Self) -> Self;
@@ -3249,6 +3297,7 @@ mod modular_inv {
             + Clone
             + Copy
             + Mul<T, Output = T>
+            + MulRem
             + One
             + PartialOrd
             + Rem<Output = T>
@@ -3268,8 +3317,3 @@ mod modular_inv {
         }
     }
 }
-
-// ========
-
-use a30::*;
-mod a30 {}

@@ -1,26 +1,8 @@
 use crate::extensions::{
     BitVec, ConstValue, Dijkstra, Each, EachCombination, EachPermutation, Modular, NdArray, NonMax,
-    OptionMinMax, PrimeValue, ValueWithEulersPhi, M1_000_000_007,
+    PrimeValue, ValueWithEulersPhi, M1_000_000_007,
 };
 use crate::{combinations, k_permutations, permutations, wrap, IntoVec, Primes};
-
-#[test]
-#[ignore]
-fn test_option_ops() {
-    assert_eq!(Some(3).omax(6), 6);
-    assert_eq!(Some(7).omax(4), 7);
-    assert_eq!(None.omax(5), 5);
-    assert_eq!(None.omax(5), 5);
-
-    assert_eq!(Some(3).omax(Some(6)), Some(6));
-    assert_eq!(Some(7).omax(Some(4)), Some(7));
-    assert_eq!(Some(3).omax(None), Some(3));
-    assert_eq!(Some(7).omax(None), Some(7));
-    assert_eq!(None::<i32>.omax(Some(6)), Some(6));
-    assert_eq!(None::<i32>.omax(Some(4)), Some(4));
-    assert_eq!(None::<i32>.omax(None), None);
-    assert_eq!(None::<i32>.omax(None), None);
-}
 
 #[test]
 fn test_bitvec() {

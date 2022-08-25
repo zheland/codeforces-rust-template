@@ -1,17 +1,14 @@
 use core::iter::FusedIterator;
 
-use crate::dedup_count::DedupCount;
-use crate::log10::Log10MinWith;
-use crate::min_max::IteratorMinMax;
-use crate::sortable::Sortable;
 use crate::tests::{black_box, rdtsc_perf};
 use crate::{
     binomial, btm, bts, combinations, count_multiplier_primes, count_multipliers, factorize_to_vec,
     gcd, hm, hs, k_permutations, lcm, permutations, solve_ax_cong_b_mod_p, subsequences, wrap,
-    Binomial, CheckedMul, Factorial, Factorials, IntoVec, IsInRange, Log10, Log2, One, Primes,
-    Prods, SliceFromIterator, Sums, Ten, I128_POWERS_OF_10, I16_POWERS_OF_10, I32_POWERS_OF_10,
-    I64_POWERS_OF_10, I8_POWERS_OF_10, ISIZE_POWERS_OF_10, U128_POWERS_OF_10, U16_POWERS_OF_10,
-    U32_POWERS_OF_10, U64_POWERS_OF_10, U8_POWERS_OF_10, USIZE_POWERS_OF_10,
+    Binomial, CheckedMul, DedupCount, Factorial, Factorials, IntoVec, IsInRange, IteratorMinMax,
+    Log10, Log10MinWith, Log2, One, OptionExt, Primes, Prods, SliceFromIterator, Sortable, Sums,
+    Ten, I128_POWERS_OF_10, I16_POWERS_OF_10, I32_POWERS_OF_10, I64_POWERS_OF_10, I8_POWERS_OF_10,
+    ISIZE_POWERS_OF_10, U128_POWERS_OF_10, U16_POWERS_OF_10, U32_POWERS_OF_10, U64_POWERS_OF_10,
+    U8_POWERS_OF_10, USIZE_POWERS_OF_10,
 };
 
 #[test]
@@ -327,7 +324,7 @@ fn test_primes_perf() {
         },
         256,
     );
-    assert!(p1 < p2);
+    assert!(p1 / 2 < p2);
 }
 
 #[test]
@@ -757,6 +754,37 @@ fn test_prods() {
         vec![1, 10, 2, 20, 3, 30, 4, 40].prods().into_vec(),
         vec![1, 10, 20, 400, 1200, 36000, 144000, 5760000]
     );
+}
+
+#[test]
+fn test_option_ops() {
+    assert_eq!(Some(3).omax(6), 6);
+    assert_eq!(Some(7).omax(4), 7);
+    assert_eq!(None.omax(5), 5);
+    assert_eq!(None.omax(5), 5);
+
+    assert_eq!(Some(3).omax(Some(6)), Some(6));
+    assert_eq!(Some(7).omax(Some(4)), Some(7));
+    assert_eq!(Some(3).omax(None), Some(3));
+    assert_eq!(Some(7).omax(None), Some(7));
+    assert_eq!(None::<i32>.omax(Some(6)), Some(6));
+    assert_eq!(None::<i32>.omax(Some(4)), Some(4));
+    assert_eq!(None::<i32>.omax(None), None);
+    assert_eq!(None::<i32>.omax(None), None);
+
+    assert_eq!(Some(3).omin(6), 3);
+    assert_eq!(Some(7).omin(4), 4);
+    assert_eq!(None.omin(5), 5);
+    assert_eq!(None.omin(5), 5);
+
+    assert_eq!(Some(3).omin(Some(6)), Some(3));
+    assert_eq!(Some(7).omin(Some(4)), Some(4));
+    assert_eq!(Some(3).omin(None), Some(3));
+    assert_eq!(Some(7).omin(None), Some(7));
+    assert_eq!(None::<i32>.omin(Some(6)), Some(6));
+    assert_eq!(None::<i32>.omin(Some(4)), Some(4));
+    assert_eq!(None::<i32>.omin(None), None);
+    assert_eq!(None::<i32>.omin(None), None);
 }
 
 #[test]
