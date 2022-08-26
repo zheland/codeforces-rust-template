@@ -1,3 +1,7 @@
+use std::io::BufReader;
+
+use crate::{LineReader, WordWriter};
+
 #[inline(never)]
 pub fn black_box<D>(input: D) -> D {
     unsafe {
@@ -34,4 +38,12 @@ where
         let _ = black_box(output);
     }
     min_time
+}
+
+pub fn re(value: &[u8]) -> LineReader<BufReader<&[u8]>> {
+    LineReader::new(BufReader::new(value))
+}
+
+pub fn wr() -> WordWriter<Vec<u8>> {
+    WordWriter::new(Vec::new())
 }

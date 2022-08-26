@@ -14,42 +14,17 @@ mkdir -p target/touch
 mkdir -p target/problems
 
 while true; do
-    for problem_path in problems/*; do
-        problem_name=$(basename -- "$problem_path")
-        file_path="$problem_path/src/$problem_name.rs"
-        touch_path="target/touch/$problem_name"
-        if [[ $touch_path -ot $file_path ]]; then
-            touch $touch_path
-            rustc $file_path -o target/problems/$problem_name \
-            && cargo test --package "$problem_name" \
-            || true
-        fi
-    done
-    sleep 0.1;
-done
-
-
-
-exit
-
-node importlibs.js
-prev_modified=$( stat -c %Y "src/main.rs" )
-echo "+ $args"
-eval "$args" || true
-while true; do
-    last_modified=$( stat -c %Y "src/main.rs" )
-    if [[ $prev_modified != $last_modified ]]; then
-        printf "    \r"
-        node importlibs.js
-        last_modified=$( stat -c %Y "src/main.rs" )
-        echo "+ $args"
-        eval "$args" || true
-        prev_modified=$last_modified
-        sleep 1
-    else
-        for i in $( seq 1 12 ); do
-            printf "$( printf $clocks | head -c $((i * 4)) | tail -c 4 )\r"
-            sleep 0.02;
+    for i in $( seq 1 12 ); do
+        for bin_path in src/*.rs; do
+            bin_name=$(basename -- "$bin_path" .rs)
+            touch_path="target/touch/$bin_name"
+            if [[ $touch_path -ot $bin_path ]]; then
+                touch $touch_path
+                cargo test --bin "$bin_name" || true
+            fi
         done
-    fi
+        printf " $( printf $clocks | head -c $((i * 4)) | tail -c 4 )\r"
+        sleep 0.1;
+        printf "  \r"
+    done
 done
