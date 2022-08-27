@@ -54,30 +54,38 @@ use std::sync::Arc;
 #[cfg(test)]
 use crate::tests::{test_with_examples, test_with_interactor, ChannelReader, ChannelWriter};
 
+#[allow(unused_labels)]
 pub fn problem<I: ReaderExt + WriterExt>(io: &mut I) {
-    let a: i32 = io.re();
-    let b: i32 = io.re();
-    io.li(a);
-    io.li(b);
-    io.li(a + b);
+    #[rustfmt::skip]
+    macro_rules! re {
+        () => {{ io.re() }};
+        ( $ty:ty ) => {{ io.re::<$ty>() }};
+        [ $len:expr ] => {{ match $len { len => (0..len).map(|_| io.re()) } }};
+        [ $ty:ty; $len:expr ] => {{ match $len { len => (0..len).map(|_| io.re::<$ty>()) } }};
+    }
+
+    let t: usize = re!();
+    'main: for _ in 0..t {
+        let n = re!(usize);
+        let a = re![i64; n].into_vec();
+        io.li(a.iter().sum::<i64>());
+    }
 }
 
 const EXAMPLES: &str = r####"
 ----
 ====
 1
-2
+2 3 4
 ----
-1
-2
-3
+7
 ====
-4
-5
+2
+3 4 5 6
+7 8 9 10 11 12 13 14
 ----
-4
-5
-9
+15
+77
 "####;
 
 #[derive(Clone, Debug)]
@@ -85,15 +93,22 @@ pub struct Preset {}
 
 #[allow(unused_variables, clippy::needless_pass_by_value)]
 pub fn interactor<I: ReaderExt + WriterExt>(io: &mut I, preset: Preset) {
-    io.li(1i32);
+    #[rustfmt::skip]
+    macro_rules! re {
+        () => {{ io.re() }};
+        ( $ty:ty ) => {{ io.re::<$ty>() }};
+        [ $len:expr ] => {{ match $len { len => (0..len).map(|_| io.re()) } }};
+        [ $ty:ty; $len:expr ] => {{ match $len { len => (0..len).map(|_| io.re::<$ty>()) } }};
+    }
+
     io.li(2i32);
+    io.li((3i32, [1i32, 2i32, 3i32].wo()).wo());
+    io.li((4i32, [2i32, 3i32, 4i32, 5i32].wo()).wo());
     io.fl();
-    let a: i32 = io.re();
-    let b: i32 = io.re();
-    let c: i32 = io.re();
-    assert_eq!(a, 1, "{preset:?}");
-    assert_eq!(b, 2, "{preset:?}");
-    assert_eq!(c, 3, "{preset:?}");
+    let a: i32 = re!();
+    let b: i32 = re!();
+    assert_eq!(a, 6, "{preset:?}");
+    assert_eq!(b, 14, "{preset:?}");
 }
 
 pub fn main() {
@@ -107,6 +122,7 @@ fn test_examples() {
 }
 
 #[test]
+#[cfg(all(feature = "interactive"))]
 fn test_interactor() {
     test_with_interactor(problem, |io| interactor(io, Preset {}))
 }

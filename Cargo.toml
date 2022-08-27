@@ -80,6 +80,7 @@ name = "z2"
 path = "src/z2.rs"
 
 [features]
+interactive = []
 libtests = []
 
 [dev-dependencies]

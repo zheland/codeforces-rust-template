@@ -4,6 +4,30 @@
 $$gcd(a, b) = gcd(a - b, a) \\ gcd(14, 10) = gcd(4, 10)$$
 https://en.wikipedia.org/wiki/Euclidean_algorithm
 
+## Coprime integers
+
+$$
+gcd(a, b) = 1 \implies
+mults(a \cdot b) = \{ ...mults(a), ...mults(b) \}
+$$
+
+## Modulo multiplication
+
+$$(a \cdot b) \mod p = (a \mod p) \cdot (b \mod p)$$
+
+## Fibonacci numbers
+
+$$
+F_0 = 0, F_1 = 1, F_n = F_{n-2} + F_{n-1}, \\
+
+\begin{matrix}
+ n  & 0 & 1 & 2 & 3 & 4 & 5 & 6 &  7 &  8 &  9 & 10 & 11 &  12 \\
+F_n & 0 & 1 & 1 & 2 & 3 & 5 & 8 & 13 & 21 & 34 & 55 & 89 & 144 \\
+\end{matrix}
+$$
+
+https://en.wikipedia.org/wiki/Fibonacci_number
+
 ## Binomials
 
 $$
@@ -38,13 +62,19 @@ $$
 
 $$
 \begin{matrix}
-n | k & 0 & 1 &  2 &  3 & 4 & 5 \\
-0     & 1 &   &    &    &   &   \\
-1     & 1 & 1 &    &    &   &   \\
-2     & 1 & 2 &  1 &    &   &   \\
-3     & 1 & 3 &  3 &  1 &   &   \\
-4     & 1 & 4 &  6 &  4 & 1 &   \\
-5     & 1 & 5 & 10 & 10 & 5 & 1 \\
+\begin{matrix} & k \\ n & \\ \end{matrix}
+   & 0 & 1 &  2 &  3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 \\
+ 0 & 1 \\
+ 1 & 1 & 1 \\
+ 2 & 1 & 2 & 1 \\
+ 3 & 1 & 3 & 3 & 1 \\
+ 4 & 1 & 4 & 6 & 4 & 1 \\
+ 5 & 1 & 5 & 10 & 10 & 5 & 1 \\
+ 6 & 1 & 6 & 15 & 20 & 15 & 6 & 1 \\
+ 7 & 1 & 7 & 21 & 35 & 35 & 21 & 7 & 1 \\
+ 8 & 1 & 8 & 28 & 56 & 70 & 56 & 28 & 8 & 1 \\
+ 9 & 1 & 9 & 36 & 84 & 126 & 126 & 84 & 36 & 9 & 1 \\
+10 & 1 & 10 & 45 & 129 & 219 & 252 & 219 & 129 & 45 & 10 & 1 \\
 \end{matrix}
 $$
 
@@ -52,12 +82,15 @@ $$
 
 $$
 \begin{matrix}
-0     & 1 & 1 & 1  & 1  & 1 &   \\
-1     & 1 & 2 & 3  & 4  & 5 &   \\
-2     & 1 & 3 &  6 & 10 & 15 & \text{triangle numbers} \\
-3     & 1 & 4 & 10 & 20 & 35 & \text{tetrahedral numbers} \\
+0     & 1 & 1 &  1 & 1  &  1 &  1 &  1 &   1 &   1 &   1 \\
+1     & 1 & 2 &  3 & 4  &  5 &  6 &  7 &   8 &   9 &  10 & \text{natural numbers} \\
+2     & 1 & 3 &  6 & 10 & 15 & 21 & 28 &  36 &  45 &  55 & \text{triangle numbers} \\
+3     & 1 & 4 & 10 & 20 & 35 & 56 & 84 & 120 & 165 & 220 & \text{tetrahedral numbers} \\
 \end{matrix}
 $$
+https://en.wikipedia.org/wiki/Binomial_coefficient
+https://en.wikipedia.org/wiki/Triangular_number
+https://en.wikipedia.org/wiki/Tetrahedral_number
 
 ## Factorize
 $$
@@ -147,8 +180,8 @@ $$
 \text{p is prime} \\
 a \mod p > 0
 \end{align*}\right\}
-&\implies a^{p - 1} \mod p = 1 \implies \\
-&\implies a^{p - 2} \mod p = a^{-1} \mod p
+& \implies a^{p - 1} \mod p = 1 \implies \\
+& \implies a^{p - 2} \mod p = a^{-1} \mod p
 \end{align*}
 $$
 https://en.wikipedia.org/wiki/Euler%27s_theorem

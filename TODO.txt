@@ -1,23 +1,3 @@
-Add to template:
-    for _ in 0..t {}
-Array min max
-Read array
-iter.sum() without T specified
-Interactive ignored by default
-
-
-
-========
-
-
-
-// More sequences:
-// https://en.wikipedia.org/wiki/Fibonacci_number
-// 0 1 1 2 3 5 8 13 21 34 ...
-// https://en.wikipedia.org/wiki/Triangular_number
-// 0 1 3 6 10 15 21 28 36 ...
-// https://en.wikipedia.org/wiki/Tetrahedral_number
-// 0 4 10 20 35 56 84 120 ...
 
 graph remove node
 graph merge nodes
@@ -25,25 +5,8 @@ graph merge nodes
     (use set_edge_source_node, set_edge_target_node, remove_edge)
 graph find cycles
 
-Умножение по модулю:
-(a * b) % p = (a % p) * (b % p)
-
-Малая теорема Ферма:
-Если p - простое, а - целое не делящееся на p, то a^(p - 1) - 1 делится на p
-=> (a^(p - 1) - 1) % p          = 0
-=>  a^(p - 1) % p               = 1
-=> (a^(p - 1) % p) * (p^-1 % p) = 1 * (p^-1 % p)
-=> (a^(p - 2) % p)              = p^-1 % p
-
-
-gcd(a, b) = 1  =>  множители(a * b) = множители(a) * множители(b)
-
-https://en.wikipedia.org/wiki/Euclidean_algorithm
-gcd(a, b) = gcd(a, b - a): gcd(10, 14) = gcd(10, 4)
-
 Остовное дерево:
 https://ru.wikipedia.org/wiki/Алгоритм_Краскала
-
 
 
 quick hash:
@@ -66,7 +29,6 @@ macro_rules! impl_ops {
 
 impl_ops!(u32, u8 u16 u32 usize);
 impl_ops!(i32, i8 i16 i32 isize);
-
 
 /*impl<T, U> QuickHash for T
 where
