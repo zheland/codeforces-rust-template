@@ -1,3 +1,7 @@
+min = a.iter().reduce(min).unwrap();
+impl sums and prods using scan
+
+====
 
 graph remove node
 graph merge nodes
