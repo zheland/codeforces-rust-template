@@ -222,62 +222,56 @@ mod writer_ext {
     use crate::{Io, Writable};
 
     pub trait WriterExt {
-        fn jo<T: Writable>(&mut self, value: T);
-        fn wo<T: Writable>(&mut self, value: T);
+        fn jo1<T: Writable>(&mut self, value: T);
+        fn wo1<T: Writable>(&mut self, value: T);
         fn ln(&mut self);
         fn fl(&mut self);
 
-        fn ask(&mut self) {
-            self.wo('?');
-        }
-
-        fn ans(&mut self) {
-            self.wo('!');
-        }
+        fn ok(&mut self) {}
 
         fn li<T: Writable>(&mut self, value: T) {
-            self.wo(value);
+            self.wo1(value);
             self.ln();
         }
 
-        fn jo2<T: Writable>(&mut self, value: T) -> &mut Self {
-            self.jo(value);
+        fn jo<T: Writable>(&mut self, value: T) -> &mut Self {
+            self.jo1(value);
             self
         }
 
-        fn wo2<T: Writable>(&mut self, value: T) -> &mut Self {
-            self.wo(value);
+        fn wo<T: Writable>(&mut self, value: T) -> &mut Self {
+            self.wo1(value);
             self
         }
 
-        fn ln2(&mut self) -> &mut Self {
-            self.ln();
+        fn ask<T: Writable>(&mut self) -> &mut Self {
+            self.wo1('?');
             self
         }
 
-        fn li2<T: Writable>(&mut self, value: T) -> &mut Self {
-            self.li(value);
+        fn ans(&mut self) -> &mut Self {
+            self.wo1('!');
             self
         }
 
-        fn ask2<T: Writable>(&mut self) -> &mut Self {
-            self.ask();
+        fn yes<T: Writable>(&mut self) -> &mut Self {
+            self.wo1("YES");
             self
         }
 
-        fn ans2(&mut self) -> &mut Self {
-            self.ans();
+        fn no(&mut self) -> &mut Self {
+            self.wo1("NO");
             self
         }
     }
 
     impl<R, W: Write> WriterExt for Io<R, W> {
-        fn jo<T: Writable>(&mut self, value: T) {
-            self.writer.jo(value);
+        fn jo1<T: Writable>(&mut self, value: T) {
+            self.writer.jo1(value);
         }
 
-        fn wo<T: Writable>(&mut self, value: T) {
-            self.writer.wo(value);
+        fn wo1<T: Writable>(&mut self, value: T) {
+            self.writer.wo1(value);
         }
 
         fn ln(&mut self) {
@@ -392,12 +386,12 @@ mod word_writer {
     }
 
     impl<W: Write> WriterExt for WordWriter<W> {
-        fn jo<T: Writable>(&mut self, value: T) {
+        fn jo1<T: Writable>(&mut self, value: T) {
             value.write(&mut self.writer);
             self.is_seperator_needed = true;
         }
 
-        fn wo<T: Writable>(&mut self, value: T) {
+        fn wo1<T: Writable>(&mut self, value: T) {
             if self.is_seperator_needed {
                 write!(self.writer, " ").unwrap();
             }
