@@ -18,8 +18,10 @@ $$(a \cdot b) \mod p = (a \mod p) \cdot (b \mod p)$$
 ## Fibonacci numbers
 
 $$
-F_0 = 0, F_1 = 1, F_n = F_{n-2} + F_{n-1}, \\
+F_0 = 0, F_1 = 1, F_n = F_{n-2} + F_{n-1}
+$$
 
+$$
 \begin{matrix}
  n  & 0 & 1 & 2 & 3 & 4 & 5 & 6 &  7 &  8 &  9 & 10 & 11 &  12 \\
 F_n & 0 & 1 & 1 & 2 & 3 & 5 & 8 & 13 & 21 & 34 & 55 & 89 & 144 \\
@@ -88,6 +90,7 @@ $$
 3     & 1 & 4 & 10 & 20 & 35 & 56 & 84 & 120 & 165 & 220 & \text{tetrahedral numbers} \\
 \end{matrix}
 $$
+
 https://en.wikipedia.org/wiki/Binomial_coefficient
 https://en.wikipedia.org/wiki/Triangular_number
 https://en.wikipedia.org/wiki/Tetrahedral_number
@@ -130,6 +133,7 @@ C^2_3 & = 3 :  ab,  bc,  ca \\
 C^3_3 & = 1 : abc \\
 \end{align*}
 $$
+
 https://en.wikipedia.org/wiki/Combination
 https://en.wikipedia.org/wiki/Binomial_coefficient
 https://en.wikipedia.org/wiki/Pascal's_triangle
@@ -143,6 +147,7 @@ P_2 &= 2 : ab, ba \\
 P_3 &= 6 : abc, acb, bac, bca, cab, cba \\
 \end{align*}
 $$
+
 https://en.wikipedia.org/wiki/Permutation
 
 ## k-Permutations
@@ -154,6 +159,7 @@ A^2_3 &= 6 :  ab,  ba,  ac,  ca,  bc,  cb \\
 A^3_3 &= 6 : abc, acb, bac, bca, cab, cba \\
 \end{align*}
 $$
+
 https://en.wikipedia.org/wiki/Permutation#k-permutations_of_n
 
 ## Subsequences
@@ -171,6 +177,7 @@ $$
 $$
 ax = b \mod p
 $$
+
 https://ru.wikipedia.org/wiki/Сравнение_по_модулю
 
 ## Modular invertion
@@ -184,5 +191,6 @@ a \mod p > 0
 & \implies a^{p - 2} \mod p = a^{-1} \mod p
 \end{align*}
 $$
+
 https://en.wikipedia.org/wiki/Euler%27s_theorem
 https://en.wikipedia.org/wiki/Fermat%27s_little_theorem
