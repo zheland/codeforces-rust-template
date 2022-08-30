@@ -254,7 +254,7 @@ mod writer_ext {
             self
         }
 
-        fn yes<T: Writable>(&mut self) -> &mut Self {
+        fn yes(&mut self) -> &mut Self {
             self.wo1("YES");
             self
         }
