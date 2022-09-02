@@ -4,10 +4,13 @@ use std::thread;
 use crate::tests::TrimLines;
 use crate::Io;
 
+#[derive(Clone, Debug, Default)]
+pub struct TeeWriter(Vec<u8>);
+
 #[allow(single_use_lifetimes)]
 pub fn test_with_examples<F1>(problem: F1, examples: &'static str)
 where
-    F1: 'static + Clone + FnOnce(&mut Io<BufReader<&[u8]>, &mut Vec<u8>>) + Send + Sync,
+    F1: 'static + Clone + FnOnce(&mut Io<BufReader<&[u8]>, &mut TeeWriter>) + Send + Sync,
 {
     let mut is_ok = true;
     let mut splitted = examples.split_whitespace();
@@ -24,10 +27,14 @@ where
                 let example: Vec<&str> = case.split(&io_separator).collect();
                 assert_eq!(example.len(), 2);
                 let input = example[0].to_owned();
-                let mut output = Vec::new();
-                let mut io = Io::new(BufReader::new(input.as_bytes()), &mut output);
+                let trimmed_input = input.trim_lines();
+                let mut output = TeeWriter::default();
+                let mut io = Io::new(BufReader::new(trimmed_input.as_bytes()), &mut output);
+                for line in trimmed_input.lines() {
+                    println!("< {}", line);
+                }
                 problem(&mut io);
-                let output = String::from_utf8(output).unwrap();
+                let output = String::from_utf8(output.0).unwrap();
                 let expected = example[1].trim_lines();
                 (input, output, expected)
             })
@@ -88,5 +95,16 @@ where
     }
     if !is_ok {
         panic!();
+    }
+}
+
+impl Write for TeeWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        print!("{}", unsafe { std::str::from_utf8_unchecked(buf) });
+        self.0.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.flush()
     }
 }
