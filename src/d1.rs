@@ -124,7 +124,7 @@ fn test_examples() {
 #[test]
 #[cfg(all(feature = "interactive"))]
 fn test_interactor() {
-    test_with_interactor(problem, |io| interactor(io, Preset {}))
+    test_with_interactor(problem, |io| interactor(io, Preset {}));
 }
 
 use debug::*;
@@ -1157,7 +1157,7 @@ mod bool_ext {
         fn select<T>(self, t: T, f: T) -> T;
         fn select_with<T, F1: FnOnce() -> T, F2: FnOnce() -> T>(self, t: F1, f: F2) -> T;
         fn then_some<T>(self, some: T) -> Option<T>;
-        fn as_result<T, E>(self, ok: T, err: E) -> Result<T, E>;
+        fn into_result<T, E>(self, ok: T, err: E) -> Result<T, E>;
     }
 
     impl BoolExt for bool {
@@ -1177,7 +1177,7 @@ mod bool_ext {
             self.select(Some(some), None)
         }
 
-        fn as_result<T, E>(self, ok: T, err: E) -> Result<T, E> {
+        fn into_result<T, E>(self, ok: T, err: E) -> Result<T, E> {
             self.select(Ok(ok), Err(err))
         }
     }
@@ -1270,7 +1270,7 @@ mod sortable {
         where
             Self::Item: Ord,
         {
-            self.insertion_sort_by(|lhs, rhs| rhs.cmp(lhs))
+            self.insertion_sort_by(|lhs, rhs| rhs.cmp(lhs));
         }
     }
 
@@ -1284,14 +1284,14 @@ mod sortable {
         where
             Self::Item: Ord,
         {
-            self.sort_by(|lhs, rhs| rhs.cmp(lhs))
+            self.sort_by(|lhs, rhs| rhs.cmp(lhs));
         }
 
         fn sort_unstable_rev(&mut self)
         where
             Self::Item: Ord,
         {
-            self.sort_unstable_by(|lhs, rhs| rhs.cmp(lhs))
+            self.sort_unstable_by(|lhs, rhs| rhs.cmp(lhs));
         }
 
         // works faster on an array with a length of less than 8 elements
@@ -1299,7 +1299,7 @@ mod sortable {
         where
             Self::Item: Ord,
         {
-            self.insertion_sort_by(|lhs, rhs| lhs.cmp(rhs));
+            self.insertion_sort_by(Ord::cmp);
         }
 
         fn insertion_sort_by<F>(&mut self, mut compare: F)
@@ -1325,7 +1325,7 @@ mod sortable {
             F: FnMut(&Self::Item) -> K,
             K: Ord,
         {
-            self.insertion_sort_by(|lhs, rhs| f(lhs).cmp(&f(rhs)))
+            self.insertion_sort_by(|lhs, rhs| f(lhs).cmp(&f(rhs)));
         }
     }
 }
@@ -1637,6 +1637,11 @@ mod primes {
         pub fn new(len: usize) -> Self {
             let odds_len = len / 2;
             let mut sieve = vec![0; odds_len];
+            #[allow(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                clippy::cast_precision_loss
+            )]
             let half = (len as f64).sqrt().ceil() as usize;
             for j in (3..half).step_by(2) {
                 if sieve[j / 2] == 0 {
@@ -1698,6 +1703,7 @@ mod primes {
                 return 0;
             }
             let factorization = self.factorize(value);
+            #[allow(clippy::cast_possible_truncation)]
             factorization.dedup_count().fold(value, |mult, (prime, _)| {
                 ((mult as u64) * (prime - 1) as u64 / prime as u64) as usize
             })
@@ -1726,13 +1732,12 @@ mod primes {
                 }
             } else {
                 while self.1 < self.0.sieve.len() {
-                    if self.0.sieve[self.1] != 0 {
-                        self.1 += 1;
-                    } else {
+                    if self.0.sieve[self.1] == 0 {
                         let item = self.1;
                         self.1 += 1;
                         return Some(item * 2 + 1);
                     }
+                    self.1 += 1;
                 }
                 None
             }
@@ -1760,13 +1765,13 @@ mod primes {
                     Some(2)
                 } else {
                     let divisor = self.0.sieve[self.1 / 2];
-                    if divisor != 0 {
-                        self.1 /= divisor;
-                        Some(divisor)
-                    } else {
+                    if divisor == 0 {
                         let item = self.1;
                         self.1 = 1;
                         Some(item)
+                    } else {
+                        self.1 /= divisor;
+                        Some(divisor)
                     }
                 }
             } else {
