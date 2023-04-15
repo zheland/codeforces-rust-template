@@ -1,3 +1,5 @@
+use std::iter::repeat;
+
 use crate::extensions::collection_bit_vec::BitVec;
 use crate::into_vec::IntoVec;
 
@@ -9,7 +11,7 @@ fn test_bitvec() {
     let bitvec = BitVec::new();
     assert_eq!(as_vec(&bitvec), []);
 
-    let mut bitvec: BitVec = (0..80).map(|_| false).collect();
+    let mut bitvec: BitVec = repeat(false).take(80).collect();
     assert_eq!(
         as_vec(&bitvec),
         [
@@ -18,7 +20,7 @@ fn test_bitvec() {
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
         ]
     );
-    bitvec.extend((0..7).map(|_| true));
+    bitvec.extend(repeat(true).take(7));
     assert_eq!(
         as_vec(&bitvec),
         [
@@ -64,7 +66,7 @@ fn test_bitvec() {
         ]
     );
 
-    let mut bitvec: BitVec = (0..145).map(|_| false).collect();
+    let mut bitvec: BitVec = repeat(false).take(145).collect();
     bitvec.set_range(29..116, true);
     assert_eq!(
         as_vec(&bitvec),
@@ -203,12 +205,13 @@ fn test_bitvec_ops() {
         let mut bitvec: BitVec = (0..len).map(|j| j & 1 == 1).collect();
         for j in 0..len {
             bitvec.set(j, false);
-            assert_eq!(bitvec.get(j), false);
+            assert!(!bitvec.get(j));
             bitvec.set(j, true);
-            assert_eq!(bitvec.get(j), true);
+            assert!(bitvec.get(j));
         }
         let mut bitvec: BitVec = (0..len).map(|j| j & 1 == 1).collect();
         for j1 in 0..len {
+            #[allow(clippy::cast_possible_truncation)]
             for j2 in 0..=len {
                 bitvec.set_range(j1..j2, false);
                 assert_eq!(bitvec.count_ones(j1..j2), 0);

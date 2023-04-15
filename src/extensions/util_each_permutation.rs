@@ -69,7 +69,7 @@ mod util_each_permutation {
                             break;
                         }
                     }
-                    if self.idxs.len() == 0 {
+                    if self.idxs.is_empty() {
                         self.data = None;
                         return None;
                     }
@@ -106,8 +106,9 @@ mod util_each_permutation {
             Self(Rc::clone(rc))
         }
 
+        #[must_use]
         pub fn get(&self) -> Ref<'_, [&'a T]> {
-            Ref::map(self.0.borrow(), |value| value.as_slice())
+            Ref::map(self.0.borrow(), Vec::as_slice)
         }
     }
 }

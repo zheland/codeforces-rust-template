@@ -43,16 +43,26 @@ mod math_binomial {
         }
     }
 
-    impl<T> Binomial<T>
+    impl<T> Default for Binomial<T>
     where
         T: One + Copy + Zero,
     {
-        pub fn new() -> Self {
+        fn default() -> Self {
             Self {
                 value: T::one(),
                 n: T::zero(),
                 k: T::zero(),
             }
+        }
+    }
+
+    impl<T> Binomial<T>
+    where
+        T: One + Copy + Zero,
+    {
+        #[must_use]
+        pub fn new() -> Self {
+            Self::default()
         }
 
         pub fn with_n(n: T) -> Self {

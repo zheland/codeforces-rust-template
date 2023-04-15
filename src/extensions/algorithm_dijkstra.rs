@@ -15,31 +15,32 @@ mod algorithm_dijkstra {
             Self(value)
         }
 
+        #[must_use]
         pub fn none() -> Self {
             Self(T::max())
         }
 
         pub fn get_ref(&self) -> Option<&T> {
-            if self.0 != T::max() {
-                Some(&self.0)
-            } else {
+            if self.0 == T::max() {
                 None
+            } else {
+                Some(&self.0)
             }
         }
 
         pub fn get_mut(&mut self) -> Option<&mut T> {
-            if self.0 != T::max() {
-                Some(&mut self.0)
-            } else {
+            if self.0 == T::max() {
                 None
+            } else {
+                Some(&mut self.0)
             }
         }
 
         pub fn into_inner(self) -> Option<T> {
-            if self.0 != T::max() {
-                Some(self.0)
-            } else {
+            if self.0 == T::max() {
                 None
+            } else {
+                Some(self.0)
             }
         }
 
@@ -118,7 +119,7 @@ mod algorithm_dijkstra {
             let mut nodes = Vec::new();
             let mut dists = vec![None; num_nodes];
             let mut prevs = vec![NonMax::none(); num_nodes];
-            for (node_id, dist) in initial.into_iter() {
+            for (node_id, dist) in initial {
                 let _ = queue.insert((dist, node_id, None));
             }
             while let Some(item) = queue.iter().next().cloned() {
@@ -135,7 +136,7 @@ mod algorithm_dijkstra {
                 } else {
                     break;
                 };
-                for edge in edges.into_iter() {
+                for edge in edges {
                     let target_node_id = edge.0;
                     if dists[target_node_id].is_some() {
                         continue;
@@ -143,7 +144,7 @@ mod algorithm_dijkstra {
                     let target_dist = edge.1;
                     assert!(
                         source_dist <= target_dist,
-                        "Negative distance is not supported by algorithm"
+                        "Negative distance is not supported by the algorithm"
                     );
                     let _ = queue.insert((target_dist, target_node_id, Some(source_node_id)));
                 }

@@ -14,14 +14,17 @@ mod collection_bit_vec {
     }
 
     impl BitVec {
+        #[must_use]
         pub fn new() -> Self {
             Self::default()
         }
 
+        #[must_use]
         pub const fn chunk_bits() -> usize {
             std::mem::size_of::<BitVecChunk>() * 8
         }
 
+        #[must_use]
         pub fn offset_of(j: usize) -> (usize, usize) {
             (j / Self::chunk_bits(), j & (Self::chunk_bits() - 1))
         }
@@ -52,22 +55,27 @@ mod collection_bit_vec {
             }
         }
 
+        #[must_use]
         pub fn chunks(&self) -> &[BitVecChunk] {
             &self.chunks
         }
 
+        #[must_use]
         pub fn free_bits(&self) -> usize {
             self.free_bits
         }
 
+        #[must_use]
         pub fn next_bit_mask(&self) -> usize {
             Self::chunk_bits() - self.free_bits
         }
 
+        #[must_use]
         pub fn len(&self) -> usize {
             self.chunks.len() * Self::chunk_bits() - self.free_bits
         }
 
+        #[must_use]
         pub fn is_empty(&self) -> bool {
             self.chunks.is_empty()
         }
@@ -136,6 +144,7 @@ mod collection_bit_vec {
             Some(result)
         }
 
+        #[must_use]
         pub fn try_get(&self, offset: usize) -> Option<bool> {
             if offset < self.len() {
                 let (j, b) = Self::offset_of(offset);
@@ -160,14 +169,16 @@ mod collection_bit_vec {
             }
         }
 
+        #[must_use]
         pub fn get(&self, offset: usize) -> bool {
             self.try_get(offset).unwrap()
         }
 
         pub fn set(&mut self, offset: usize, value: bool) {
-            self.try_set(offset, value).unwrap()
+            self.try_set(offset, value).unwrap();
         }
 
+        #[allow(clippy::similar_names)]
         pub fn set_range<R: RangeBounds<usize>>(&mut self, range: R, value: bool) {
             let ((lj, lb), (rj, rb)) = if let Some(range) = self.range_of(range) {
                 range
@@ -184,10 +195,10 @@ mod collection_bit_vec {
                 }
             } else {
                 let lmask = std::usize::MAX << lb;
-                let rmask = if rb != 0 {
-                    Some(std::usize::MAX >> (Self::chunk_bits() - rb))
-                } else {
+                let rmask = if rb == 0 {
                     None
+                } else {
+                    Some(std::usize::MAX >> (Self::chunk_bits() - rb))
                 };
                 if value {
                     self.chunks[lj] |= lmask;
@@ -209,6 +220,7 @@ mod collection_bit_vec {
             }
         }
 
+        #[allow(clippy::similar_names)]
         pub fn count_ones<R: RangeBounds<usize>>(&mut self, range: R) -> u32 {
             let ((lj, lb), (rj, rb)) = if let Some(range) = self.range_of(range) {
                 range
@@ -221,10 +233,10 @@ mod collection_bit_vec {
                 (self.chunks[lj] & mask).count_ones()
             } else {
                 let lmask = std::usize::MAX << lb;
-                let rmask = if rb != 0 {
-                    Some(std::usize::MAX >> (Self::chunk_bits() - rb))
-                } else {
+                let rmask = if rb == 0 {
                     None
+                } else {
+                    Some(std::usize::MAX >> (Self::chunk_bits() - rb))
                 };
                 (self.chunks[lj] & lmask).count_ones()
                     + self.chunks[lj + 1..rj]
@@ -235,8 +247,9 @@ mod collection_bit_vec {
             }
         }
 
+        #[must_use]
         pub fn iter(&self) -> BitVecIter<'_> {
-            BitVecIter::new(&self)
+            BitVecIter::new(self)
         }
     }
 
@@ -244,6 +257,7 @@ mod collection_bit_vec {
     pub struct BitVecIter<'a>(&'a BitVec, usize);
 
     impl<'a> BitVecIter<'a> {
+        #[must_use]
         pub fn new(bitvec: &'a BitVec) -> Self {
             Self(bitvec, 0)
         }
@@ -267,6 +281,7 @@ mod collection_bit_vec {
     pub struct BitVecIntoIter(BitVec, usize);
 
     impl BitVecIntoIter {
+        #[must_use]
         pub fn new(bitvec: BitVec) -> Self {
             Self(bitvec, 0)
         }

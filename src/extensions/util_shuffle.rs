@@ -13,7 +13,7 @@ mod util_shuffle {
             let mut result = Vec::new();
             while !self.is_empty() {
                 let j = rand.gen_range(0..self.len());
-                result.push(self.swap_remove(j))
+                result.push(self.swap_remove(j));
             }
             result
         }

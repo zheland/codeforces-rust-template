@@ -40,7 +40,7 @@ impl Write for ChannelWriter {
     }
 
     fn flush(&mut self) -> IoResult<()> {
-        if self.buffer.len() > 0 {
+        if !self.buffer.is_empty() {
             let buffer = take(&mut self.buffer);
             self.send.send(buffer.into_boxed_slice()).unwrap();
         }
@@ -50,7 +50,7 @@ impl Write for ChannelWriter {
 
 impl Drop for ChannelWriter {
     fn drop(&mut self) {
-        if self.buffer.len() > 0 {
+        if !self.buffer.is_empty() {
             let buffer = take(&mut self.buffer);
             let _ = self.send.send(buffer.into_boxed_slice()).ok();
         }

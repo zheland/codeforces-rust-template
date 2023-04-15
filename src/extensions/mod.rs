@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception, clippy::result_unit_err)]
+
 pub mod algorithm_dijkstra;
 pub mod collection_bit_vec;
 pub mod collection_nd_array;

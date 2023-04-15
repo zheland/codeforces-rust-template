@@ -22,8 +22,9 @@ fn test_lcm() {
 }
 
 #[test]
+#[allow(clippy::bool_assert_comparison)]
 fn test_is_prime() {
-    let primes = Primes::new(1000000);
+    let primes = Primes::new(1_000_000);
     assert_eq!(primes.is_prime(2), true);
     assert_eq!(primes.is_prime(3), true);
     assert_eq!(primes.is_prime(4), false);
@@ -45,14 +46,14 @@ fn test_is_prime() {
     assert_eq!(primes.is_prime(3567), false);
     assert_eq!(primes.is_prime(3569), false);
     assert_eq!(primes.is_prime(3571), true);
-    assert_eq!(primes.is_prime(999979), true);
-    assert_eq!(primes.is_prime(999981), false);
-    assert_eq!(primes.is_prime(999983), true);
+    assert_eq!(primes.is_prime(999_979), true);
+    assert_eq!(primes.is_prime(999_981), false);
+    assert_eq!(primes.is_prime(999_983), true);
 }
 
 #[test]
 fn test_iter_primes() {
-    let sieve = Primes::new(1000000);
+    let sieve = Primes::new(1_000_000);
     let primes = sieve.iter().take(25).into_vec();
     assert_eq!(
         primes,
@@ -65,7 +66,7 @@ fn test_iter_primes() {
 
 #[test]
 fn test_prime_sieve_iter_primes() {
-    let sieve = Primes::new(1000000);
+    let sieve = Primes::new(1_000_000);
     let mut primes = sieve.iter();
     assert_eq!(primes.next(), Some(2));
     assert_eq!(primes.next(), Some(3));
@@ -96,7 +97,7 @@ fn test_prime_sieve_iter_primes() {
 
 #[test]
 fn test_prime_sieve_factorize() {
-    let primes = Primes::new(1000000);
+    let primes = Primes::new(1_000_000);
     assert_eq!(primes.factorize(1).into_vec(), []);
     assert_eq!(primes.factorize(2).into_vec(), [2]);
     assert_eq!(primes.factorize(3).into_vec(), [3]);
@@ -119,14 +120,14 @@ fn test_prime_sieve_factorize() {
     assert_eq!(primes.factorize(3567).into_vec(), [3, 29, 41]);
     assert_eq!(primes.factorize(3569).into_vec(), [43, 83]);
     assert_eq!(primes.factorize(3571).into_vec(), [3571]);
-    assert_eq!(primes.factorize(999979).into_vec(), [999979]);
-    assert_eq!(primes.factorize(999981).into_vec(), [3, 3, 111109]);
-    assert_eq!(primes.factorize(999983).into_vec(), [999983]);
+    assert_eq!(primes.factorize(999_979).into_vec(), [999_979]);
+    assert_eq!(primes.factorize(999_981).into_vec(), [3, 3, 111_109]);
+    assert_eq!(primes.factorize(999_983).into_vec(), [999_983]);
 }
 
 #[test]
 fn test_prime_sieve_num_divisors() {
-    let primes = Primes::new(1000000);
+    let primes = Primes::new(1_000_000);
     assert_eq!(primes.num_divisors(1), 1);
     assert_eq!(primes.num_divisors(2), 2);
     assert_eq!(primes.num_divisors(3), 2);
@@ -149,14 +150,14 @@ fn test_prime_sieve_num_divisors() {
     assert_eq!(primes.num_divisors(3567), 8);
     assert_eq!(primes.num_divisors(3569), 4);
     assert_eq!(primes.num_divisors(3571), 2);
-    assert_eq!(primes.num_divisors(999979), 2);
-    assert_eq!(primes.num_divisors(999981), 6);
-    assert_eq!(primes.num_divisors(999983), 2);
+    assert_eq!(primes.num_divisors(999_979), 2);
+    assert_eq!(primes.num_divisors(999_981), 6);
+    assert_eq!(primes.num_divisors(999_983), 2);
 }
 
 #[test]
 fn test_prime_sieve_eulers_phi() {
-    let primes = Primes::new(1000000);
+    let primes = Primes::new(1_000_000);
     assert_eq!(primes.eulers_phi(1), 0);
     assert_eq!(primes.eulers_phi(2), 1);
     assert_eq!(primes.eulers_phi(3), 2);
@@ -179,39 +180,43 @@ fn test_prime_sieve_eulers_phi() {
     assert_eq!(primes.eulers_phi(3567), 2240);
     assert_eq!(primes.eulers_phi(3569), 3444);
     assert_eq!(primes.eulers_phi(3571), 3570);
-    assert_eq!(primes.eulers_phi(999979), 999978);
-    assert_eq!(primes.eulers_phi(999981), 666648);
-    assert_eq!(primes.eulers_phi(999983), 999982);
+    assert_eq!(primes.eulers_phi(999_979), 999_978);
+    assert_eq!(primes.eulers_phi(999_981), 666_648);
+    assert_eq!(primes.eulers_phi(999_983), 999_982);
 }
 
 #[test]
 fn test_primes_perf() {
-    for j in 0..1000000 {
+    for j in 0..1_000_000 {
         let _ = black_box(j);
     }
     let p1 = rdtsc_perf(|| (), |_| Primes::new(1000), 256);
     let p2 = rdtsc_perf(|| (), |_| FullPrimesSieve::new(1000), 256);
-    assert!(p1 * 2 < p2);
+    assert!(p1 < p2 * 2);
 
     let p1 = rdtsc_perf(
-        || Primes::new(100000),
+        || Primes::new(100_000),
         |p| {
             for v in 100..200 {
-                let _ = p.factorize(v).map(|v| black_box(v)).count();
+                for f in p.factorize(v) {
+                    let _f = black_box(f);
+                }
             }
         },
         256,
     );
     let p2 = rdtsc_perf(
-        || FullPrimesSieve::new(100000),
+        || FullPrimesSieve::new(100_000),
         |p| {
             for v in 100..200 {
-                let _ = p.factorize(v).map(|v| black_box(v)).count();
+                for f in p.factorize(v) {
+                    let _f = black_box(f);
+                }
             }
         },
         256,
     );
-    assert!(p1 / 2 < p2);
+    assert!(p1 < p2 * 2);
 }
 
 #[test]
@@ -274,7 +279,7 @@ fn test_into_wrapped() {
     let mut a = wrap(1u32);
     assert_eq!(a.0, 1);
     a -= wrap(2);
-    assert_eq!(a.0, 4294967295);
+    assert_eq!(a.0, 4_294_967_295);
     a += wrap(2);
     assert_eq!(a.0, 1);
 
@@ -396,10 +401,11 @@ fn test_insertion_sort_faster_on_small_arrays() {
             }
         }
     }
+    #[allow(clippy::cast_lossless)]
     let success_rate = oks as f64 / (oks + fails) as f64;
     assert!(
         success_rate >= MIN_SUCCESS_RATE,
-        "Success rate {} excees minimal success rate {}",
+        "Success rate {} excess minimal success rate {}",
         success_rate,
         MIN_SUCCESS_RATE
     );
@@ -431,10 +437,11 @@ fn test_insertion_sort_longer_on_large_arrays() {
             }
         }
     }
+    #[allow(clippy::cast_lossless)]
     let success_rate = oks as f64 / (oks + fails) as f64;
     assert!(
         success_rate >= MIN_SUCCESS_RATE,
-        "Success rate {} excees minimal success rate {}",
+        "Success rate {} excess minimal success rate {}",
         success_rate,
         MIN_SUCCESS_RATE
     );
@@ -484,6 +491,11 @@ pub struct FullPrimesSieve(Vec<usize>);
 impl FullPrimesSieve {
     pub fn new(len: usize) -> Self {
         let mut data = vec![0; len];
+        #[allow(
+            clippy::cast_precision_loss,
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss
+        )]
         let half = (len as f64).sqrt().ceil() as usize;
         for j in 2..half {
             if data[j] == 0 {
@@ -534,13 +546,12 @@ impl Iterator for FullPrimesSieveIter<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         self.1 = self.1.max(2);
         while self.1 < self.0.sieve().len() {
-            if self.0.sieve()[self.1] != 0 {
-                self.1 += 1;
-            } else {
+            if self.0.sieve()[self.1] == 0 {
                 let item = self.1;
                 self.1 += 1;
                 return Some(item);
             }
+            self.1 += 1;
         }
         None
     }
@@ -563,13 +574,13 @@ impl Iterator for FullPrimesSieveFactorizeIter<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.1 > 1 {
             let divisor = self.0.sieve()[self.1];
-            if divisor != 0 {
-                self.1 /= divisor;
-                Some(divisor)
-            } else {
+            if divisor == 0 {
                 let item = self.1;
                 self.1 = 1;
                 Some(item)
+            } else {
+                self.1 /= divisor;
+                Some(divisor)
             }
         } else {
             None

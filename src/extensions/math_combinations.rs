@@ -4,6 +4,7 @@ mod math_combinations {
 
     use crate::Factorial;
 
+    #[must_use]
     pub fn combinations<T>(k: usize, n: usize) -> T
     where
         T: Div<Output = T> + Factorial,

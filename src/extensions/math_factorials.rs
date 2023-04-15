@@ -11,13 +11,20 @@ mod math_factorials {
         mult2: T,
     }
 
-    impl<T: One> Factorials<T> {
-        pub fn new() -> Self {
+    impl<T: One> Default for Factorials<T> {
+        fn default() -> Self {
             Self {
                 data: vec![T::one()],
                 mult1: T::one(),
                 mult2: T::one(),
             }
+        }
+    }
+
+    impl<T: One> Factorials<T> {
+        #[must_use]
+        pub fn new() -> Self {
+            Self::default()
         }
     }
 

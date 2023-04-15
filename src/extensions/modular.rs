@@ -113,6 +113,8 @@ mod modular {
             1_000_000_007
         }
     }
+
+    #[allow(clippy::derive_hash_xor_eq)]
     #[derive(Clone, Copy, Debug, Default, Hash)]
     pub struct Modular<T, M>(pub T, pub M);
 
@@ -240,7 +242,7 @@ mod modular {
         M: Value<Output = T>,
     {
         fn add_assign(&mut self, other: Self) {
-            self.0 = (*self + other).0
+            self.0 = (*self + other).0;
         }
     }
 
@@ -250,7 +252,7 @@ mod modular {
         M: Value<Output = T>,
     {
         fn sub_assign(&mut self, other: Self) {
-            self.0 = (*self - other).0
+            self.0 = (*self - other).0;
         }
     }
 
@@ -260,7 +262,7 @@ mod modular {
         M: Value<Output = T>,
     {
         fn mul_assign(&mut self, other: Self) {
-            self.0 = (*self * other).0
+            self.0 = (*self * other).0;
         }
     }
 
@@ -270,7 +272,7 @@ mod modular {
         M: PrimeValue<Output = T>,
     {
         fn div_assign(&mut self, other: Self) {
-            self.0 = (*self / other).0
+            self.0 = (*self / other).0;
         }
     }
 
@@ -442,13 +444,13 @@ mod modular {
 
     impl<T: Ord, M> PartialEq<T> for Modular<T, M> {
         fn eq(&self, other: &T) -> bool {
-            self.0.eq(&other)
+            self.0.eq(other)
         }
     }
 
     impl<T: Ord, M> PartialOrd<T> for Modular<T, M> {
         fn partial_cmp(&self, other: &T) -> Option<Ordering> {
-            self.0.partial_cmp(&other)
+            self.0.partial_cmp(other)
         }
     }
 

@@ -147,7 +147,7 @@ fn test_dimview3_mut() {
 #[should_panic]
 fn test_dimview2_size_check() {
     let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    let _ = NdArray::from(&arr[..], [4, 4]);
+    let _arr = NdArray::from(&arr[..], [4, 4]);
 }
 
 #[test]
@@ -156,7 +156,7 @@ fn test_dimview3_size_check() {
     let arr = [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
     ];
-    let _ = NdArray::from(&arr[..], [4, 3, 3]);
+    let _arr = NdArray::from(&arr[..], [4, 3, 3]);
 }
 
 #[test]

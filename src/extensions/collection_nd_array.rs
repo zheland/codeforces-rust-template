@@ -25,12 +25,11 @@ mod collection_nd_array {
             let len = dims.borrow().iter().product();
             let data = vec![value; len];
             let mults = build_mults(dims.borrow());
-            let _item = PhantomData;
             Self {
                 data,
                 dims,
                 mults,
-                _item,
+                _item: PhantomData,
             }
         }
 
@@ -44,12 +43,11 @@ mod collection_nd_array {
             let mut data = Vec::with_capacity(len);
             data.resize_with(len, f);
             let mults = build_mults(dims.borrow());
-            let _item = PhantomData;
             Self {
                 data,
                 dims,
                 mults,
-                _item,
+                _item: PhantomData,
             }
         }
     }
@@ -63,12 +61,11 @@ mod collection_nd_array {
         pub fn from(data: U, dims: J) -> Self {
             validate_data_dims(data.borrow(), dims.borrow());
             let mults = build_mults(dims.borrow());
-            let _item = PhantomData;
             Self {
                 data,
                 dims,
                 mults,
-                _item,
+                _item: PhantomData,
             }
         }
     }
@@ -231,7 +228,7 @@ mod collection_nd_array {
         J: Borrow<[usize]>,
         M: Borrow<[usize]>,
     {
-        pub fn at<'a>(&'a self, index: usize) -> NdArray<T, &'a [T], &'a [usize], &'a [usize]> {
+        pub fn at(&self, index: usize) -> NdArray<T, &[T], &[usize], &[usize]> {
             let dims = self.dims.borrow();
             let mult: usize = dims.iter().skip(1).product();
             let offset = index * mult;
@@ -250,10 +247,7 @@ mod collection_nd_array {
         J: Borrow<[usize]>,
         M: Borrow<[usize]>,
     {
-        pub fn at_mut<'a>(
-            &'a mut self,
-            index: usize,
-        ) -> NdArray<T, &'a mut [T], &'a [usize], &'a [usize]> {
+        pub fn at_mut(&mut self, index: usize) -> NdArray<T, &mut [T], &[usize], &[usize]> {
             let dims = self.dims.borrow();
             let mult: usize = dims.iter().skip(1).product();
             let offset = index * mult;

@@ -29,13 +29,13 @@ fn test_btreemap_dijkstra() {
     .into_iter()
     .collect();
 
-    let _ = Dijkstra::new(6, once((4, 0)), |n, l| {
+    let _d = Dijkstra::new(6, once((4, 0)), |n, l| {
         Some(g.range((n, 0)..(n + 1, 0)).map(move |n| (n.0 .1, l + n.1)))
     });
     let d = Dijkstra::new(6, once((4, 0)), |n, l| {
         Some(g.range((n, 0)..(n + 1, 0)).map(move |n| (n.0 .1, l + n.1)))
     });
-    let _ = g.into_iter().count();
+    let _l = g.len();
 
     assert_eq!(d.nodes, &[4, 5, 2, 0, 1, 3]);
     assert_eq!(

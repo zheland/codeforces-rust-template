@@ -42,8 +42,8 @@ fn test_mod_ops() {
 #[test]
 fn test_rem_example() {
     let mut v = M1_000_000_007::from(0);
-    v += 1000000006;
-    assert_eq!(v.value(), 1000000006);
+    v += 1_000_000_006;
+    assert_eq!(v.value(), 1_000_000_006);
     v += 1;
     assert_eq!(v.value(), 0);
 }
@@ -51,30 +51,31 @@ fn test_rem_example() {
 #[test]
 fn test_mod_pow() {
     let v = M1_000_000_007::from(123);
-    assert_eq!(v.pow(3).value(), 1860867);
-    assert_eq!(v.pow(10).value(), 26898250);
+    assert_eq!(v.pow(3).value(), 1_860_867);
+    assert_eq!(v.pow(10).value(), 26_898_250);
 }
 
 #[test]
+#[allow(clippy::similar_names)]
 fn test_mod_inv() {
     let v = M1_000_000_007::from(123);
 
     let a1 = v.pow(1);
     let b1 = a1.inv().unwrap();
     assert_eq!(a1.value(), 123);
-    assert_eq!(b1.value(), 886178868);
+    assert_eq!(b1.value(), 886_178_868);
     assert_eq!((a1 * b1).value(), 1);
 
     let a3 = v.pow(3);
     let b3 = a3.inv().unwrap();
-    assert_eq!(a3.value(), 1860867);
-    assert_eq!(b3.value(), 939777003);
+    assert_eq!(a3.value(), 1_860_867);
+    assert_eq!(b3.value(), 939_777_003);
     assert_eq!((a3 * b3).value(), 1);
 
     let a10 = v.pow(10);
     let b10 = a10.inv().unwrap();
-    assert_eq!(a10.value(), 26898250);
-    assert_eq!(b10.value(), 408060267);
+    assert_eq!(a10.value(), 26_898_250);
+    assert_eq!(b10.value(), 408_060_267);
     assert_eq!((a10 * b10).value(), 1);
 }
 
@@ -101,14 +102,15 @@ fn test_modular_inv_with_eulers_phi() {
 
     for m in 2_u32..100 {
         for n in 0..m {
+            #[allow(clippy::cast_possible_truncation)]
             let m = ValueWithEulersPhi::new(m, primes.eulers_phi(m as usize) as u32);
             let v1 = Modular::from_raw(n, m);
             let v2 = v1.inv_with_eulers_phi();
             if let Some(v2) = v2 {
-                if n != 0 {
-                    assert_eq!(v1 * v2, Modular::from_raw(1, m));
-                } else {
+                if n == 0 {
                     assert_eq!(v2, Modular::from_raw(0, m));
+                } else {
+                    assert_eq!(v1 * v2, Modular::from_raw(1, m));
                 }
             }
         }

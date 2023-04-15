@@ -117,12 +117,25 @@ $$
 number of coprime with n before n
 $$
 \begin{align*}
-\varphi_n(7) &= 6 : 1, 2, 3, 4, 5, 6 \\
-\varphi_n(8) &= 4 : 1, \circ, 3, \circ, 5, \circ, 7 \\
-\varphi_n(9) &= 6 : 1, 2, \circ, 4, 5, \circ, 7, 8 \\
+\varphi(2) &= 1 : 1 \\
+\varphi(3) &= 2 : 1, 2 \\
+\varphi(4) &= 2 : 1, \circ, 3 \\
+\varphi(5) &= 4 : 1, 2, 3, 4 \\
+\varphi(6) &= 2 : 1, \circ, \circ, \circ, 5 \\
+\varphi(7) &= 6 : 1, 2, 3, 4, 5, 6 \\
+\varphi(8) &= 4 : 1, \circ, 3, \circ, 5, \circ, 7 \\
+\varphi(9) &= 6 : 1, 2, \circ, 4, 5, \circ, 7, 8 \\
 \end{align*}
 $$
 
+$$
+\begin{align*}
+\text{p is prime} \implies \varphi(p^k) &= p^k - p^{k-1} \\
+gcd(a, b) = 1 \implies \varphi(ab) &= \varphi(a) \cdot \varphi(b) \\
+\end{align*}
+$$
+
+https://codeforces.com/blog/entry/106851
 
 ## Combinations
 $$
@@ -165,7 +178,7 @@ https://en.wikipedia.org/wiki/Permutation#k-permutations_of_n
 ## Subsequences
 $$
 \begin{align*}
-f(n) &= \dfrac{n(n+1)}{2}
+f(n) &= \dfrac{n(n+1)}{2} \\
 f(1) &= 1 : a \\
 f(2) &= 3 : a, b, ab \\
 f(3) &= 6 : a, b, c, ab, bc, abc \\
@@ -178,9 +191,11 @@ $$
 ax = b \mod p
 $$
 
-https://ru.wikipedia.org/wiki/Сравнение_по_модулю
+https://en.wikipedia.org/wiki/Modular_arithmetic#Congruence
 
-## Modular invertion
+https://ru.wikipedia.org/wiki/Сравнение_по_модулю (ru)
+
+## Modular inversion
 $$
 \begin{align*}
 \left.\begin{align*}

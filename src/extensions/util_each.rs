@@ -16,6 +16,7 @@ mod util_each {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     #[derive(Clone, Debug)]
     pub struct EachIter<T, I>(Option<(T, Vec<I::IntoIter>, Vec<I::Item>)>)
     where
@@ -48,14 +49,14 @@ mod util_each {
                         data.1.push(last);
                         data.2.push(value);
                     } else {
-                        let _ = data.2.pop()?;
+                        let _v = data.2.pop()?;
                     }
                 } else if data.1.len() < data.0.as_ref().len() {
                     data.1
                         .push(data.0.as_ref()[data.1.len()].clone().into_iter());
                 } else {
                     let item = data.2.clone();
-                    let _ = data.2.pop();
+                    let _v = data.2.pop();
                     self.0 = Some(data);
                     return Some(item);
                 }

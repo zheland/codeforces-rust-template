@@ -38,7 +38,7 @@ mod util_each_combination {
     impl<'a, T> EachCombinationComb<'a, T> {
         pub fn new(data: &'a [T]) -> Self {
             Self {
-                data: data,
+                data,
                 mask: vec![],
                 j: 0,
             }
@@ -84,15 +84,15 @@ mod util_each_combination {
                         if comb.mask.is_empty() {
                             comb.mask = vec![false; comb.data.len()];
                         } else {
+                            #[allow(clippy::never_loop)]
                             'outer: loop {
-                                for bit in comb.mask.iter_mut() {
+                                for bit in &mut comb.mask {
                                     *bit = !*bit;
                                     if *bit {
                                         self.num += 1;
                                         break 'outer;
-                                    } else {
-                                        self.num -= 1;
                                     }
+                                    self.num -= 1;
                                 }
                                 return None;
                             }
@@ -133,9 +133,8 @@ mod util_each_combination {
                     let item = &comb.data[comb.j];
                     comb.j += 1;
                     return Some(item);
-                } else {
-                    comb.j += 1;
                 }
+                comb.j += 1;
             }
             None
         }

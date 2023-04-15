@@ -4,6 +4,7 @@ mod math_permutations {
 
     use crate::Factorial;
 
+    #[must_use]
     pub fn permutations<T>(n: usize) -> T
     where
         T: Factorial,
@@ -11,6 +12,7 @@ mod math_permutations {
         T::factorial(n)
     }
 
+    #[must_use]
     pub fn k_permutations<T>(k: usize, n: usize) -> T
     where
         T: Div<Output = T> + Factorial,

@@ -46,7 +46,6 @@ fn test_array_word_bigger() {
 }
 
 #[test]
-#[should_panic]
 fn test_separated_tuple() {
     assert_eq!(wr().wo(().jo()).as_writer(), b"");
     assert_eq!(wr().wo((12,).jo()).as_writer(), b"12");
@@ -64,20 +63,23 @@ fn test_separated_tuple() {
     assert_eq!(wr().wo((12,).sep(", ")).as_writer(), b"12");
     assert_eq!(wr().wo((12, "ab").sep(", ")).as_writer(), b"12, ab");
     assert_eq!(wr().wo((12, "ab", 34).sep(", ")).as_writer(), b"12, ab, 34");
-    assert_eq!(wr().wo(().fmt("[", ", ", "]")).as_writer(), b"");
-    assert_eq!(wr().wo((12,).fmt("[", ", ", "]")).as_writer(), b"12");
+    assert_eq!(wr().wo(().fmt("[", ", ", "]")).as_writer(), b"[]");
+    assert_eq!(wr().wo((12,).fmt("[", ", ", "]")).as_writer(), b"[12]");
     assert_eq!(
         wr().wo((12, "ab").fmt("[", ", ", "]")).as_writer(),
-        b"12, ab"
+        b"[12, ab]"
     );
     assert_eq!(
         wr().wo((12, "ab", 34).fmt("[", ", ", "]")).as_writer(),
-        b"12, ab, 34"
+        b"[12, ab, 34]"
+    );
+    assert_eq!(
+        wr().wo(((1, 2).wo(), (1, 2).wo()).jo()).as_writer(),
+        b"1 21 2"
     );
 }
 
 #[test]
-#[should_panic]
 fn test_separated_iterator() {
     assert_eq!(wr().wo([0; 0].jo()).as_writer(), b"");
     assert_eq!(wr().wo([12].jo()).as_writer(), b"12");
@@ -95,11 +97,18 @@ fn test_separated_iterator() {
     assert_eq!(wr().wo([12].sep(", ")).as_writer(), b"12");
     assert_eq!(wr().wo([12, 23].sep(", ")).as_writer(), b"12, 23");
     assert_eq!(wr().wo([12, 23, 34].sep(", ")).as_writer(), b"12, 23, 34");
-    assert_eq!(wr().wo([0; 0].fmt("[", ", ", "]")).as_writer(), b"");
-    assert_eq!(wr().wo([12].fmt("[", ", ", "]")).as_writer(), b"12");
-    assert_eq!(wr().wo([12, 23].fmt("[", ", ", "]")).as_writer(), b"12, 23");
+    assert_eq!(wr().wo([0; 0].fmt("[", ", ", "]")).as_writer(), b"[]");
+    assert_eq!(wr().wo([12].fmt("[", ", ", "]")).as_writer(), b"[12]");
+    assert_eq!(
+        wr().wo([12, 23].fmt("[", ", ", "]")).as_writer(),
+        b"[12, 23]"
+    );
     assert_eq!(
         wr().wo([12, 23, 34].fmt("[", ", ", "]")).as_writer(),
-        b"12, 23, 34"
+        b"[12, 23, 34]"
+    );
+    assert_eq!(
+        wr().wo([[1, 2].wo(), [1, 2].wo()].jo()).as_writer(),
+        b"1 21 2"
     );
 }

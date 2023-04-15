@@ -45,8 +45,8 @@ where
         let (input, output, expected) = handle.join().unwrap();
         if output != expected {
             let mut diff = String::new();
-            let mut output_lines = output.trim_end().split("\n");
-            let mut answer_lines = expected.trim_end().split("\n");
+            let mut output_lines = output.trim_end().split('\n');
+            let mut answer_lines = expected.trim_end().split('\n');
             loop {
                 let (output_line, answer_line) = (output_lines.next(), answer_lines.next());
                 if output_line.is_none() && answer_line.is_none() {
@@ -70,6 +70,7 @@ where
                     }
                 }
             }
+            #[allow(clippy::explicit_write, clippy::write_literal)]
             writeln!(
                 io::stderr(),
                 "{}\nInput:\n{}Output:\n{}Answer:\n{}Diff:\n{}",
@@ -93,9 +94,7 @@ where
             is_ok = false;
         }
     }
-    if !is_ok {
-        panic!();
-    }
+    assert!(is_ok);
 }
 
 impl Write for TeeWriter {

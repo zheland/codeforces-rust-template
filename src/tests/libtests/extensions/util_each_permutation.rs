@@ -27,6 +27,7 @@ fn test_each_permutation() {
 
     test(&[], &[&[]]);
 
+    #[allow(clippy::cast_possible_truncation)]
     for n in 0..8 {
         let vals = (0..n).into_vec();
         let num_combs = vals.each_permutation().count();
@@ -59,6 +60,7 @@ fn test_each_k_permutation() {
         for k in 0..8 {
             let vals = (0..n).into_vec();
             let num_combs = vals.each_k_permutation(k).count();
+            #[allow(clippy::cast_possible_truncation)]
             if k <= n {
                 assert_eq!(num_combs, k_permutations::<u64>(k, n) as usize);
             } else {

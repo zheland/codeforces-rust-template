@@ -60,6 +60,7 @@ fn test_each_k_combination() {
         for k in 0..8 {
             let vals = (0..n).into_vec();
             let num_combs = vals.each_k_combination(k).count();
+            #[allow(clippy::cast_possible_truncation)]
             if k <= n {
                 assert_eq!(num_combs, combinations::<u64>(k, n) as usize);
             } else {

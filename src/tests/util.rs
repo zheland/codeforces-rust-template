@@ -35,15 +35,17 @@ where
         let time_b = unsafe { core::arch::x86_64::_rdtsc() };
         compiler_fence(SeqCst);
         min_time = min_time.min(time_b - time_a);
-        let _ = black_box(output);
+        let _v = black_box(output);
     }
     min_time
 }
 
+#[must_use]
 pub fn re(value: &[u8]) -> LineReader<BufReader<&[u8]>> {
     LineReader::new(BufReader::new(value))
 }
 
+#[must_use]
 pub fn wr() -> WordWriter<Vec<u8>> {
     WordWriter::new(Vec::new())
 }

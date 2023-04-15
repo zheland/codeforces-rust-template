@@ -10,12 +10,23 @@ mod partial_word {
     pub struct PartialWord<const N: usize>(pub [u8; N]);
 
     impl<const N: usize> PartialWord<N> {
+        #[must_use]
         pub fn as_word(&self) -> Word<&[u8]> {
             Word(&self.0[0..self.len()])
         }
 
+        #[must_use]
         pub fn len(&self) -> usize {
             self.0.iter().take_while(|&&ch| ch != b'\0').count()
+        }
+
+        #[must_use]
+        pub fn is_empty(&self) -> bool {
+            self.0
+                .iter()
+                .take_while(|&&ch| ch != b'\0')
+                .next()
+                .is_some()
         }
     }
 
