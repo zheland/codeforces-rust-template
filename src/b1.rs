@@ -21,6 +21,7 @@
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
     clippy::module_name_repetitions,
+    clippy::too_many_lines,
     clippy::wildcard_imports,
     dead_code,
     non_snake_case,
@@ -92,7 +93,7 @@ const EXAMPLES: &str = r####"
 pub struct Preset {}
 
 #[allow(unused_variables, clippy::needless_pass_by_value)]
-pub fn interactor<I: ReaderExt + WriterExt>(io: &mut I, preset: Preset) {
+pub fn interactor<I: ReaderExt + WriterExt>(io: &mut I, preset: &Preset) {
     #[rustfmt::skip]
     macro_rules! re {
         () => {{ io.re() }};
@@ -122,9 +123,12 @@ fn test_examples() {
 }
 
 #[test]
-#[cfg(all(feature = "interactive"))]
+#[cfg(feature = "interactive")]
 fn test_interactor() {
-    test_with_interactor(problem, |io| interactor(io, Preset {}));
+    let presets = [Preset {}];
+    for preset in &presets {
+        test_with_interactor(problem, |io| interactor(io, preset));
+    }
 }
 
 use debug::*;
@@ -132,6 +136,26 @@ mod debug {
     #[macro_export]
     macro_rules! d {
         ( $($arg:tt)* ) => ( if cfg!(debug_assertions) { $($arg)* } )
+    }
+
+    #[macro_export] // shorter dbg without pretty flag
+    macro_rules! dl {
+        () => {
+            if cfg!(debug_assertions) {
+                ::std::eprintln!("[{}:{}]", ::core::file!(), ::core::line!());
+            }
+        };
+        ($($val:expr),+ $(,)?) => {
+            if cfg!(debug_assertions) {
+                ::std::eprint!("[{}:{}]", ::core::file!(), ::core::line!());
+                $(
+                    ::std::eprint!(
+                        " {} = {:?};", ::core::stringify!($val), &$val
+                    );
+                )+
+                ::std::eprintln!();
+            }
+        };
     }
 }
 
@@ -507,16 +531,16 @@ mod writable {
     macro_rules! def_wr_by_ref {
         ( ( $( for $($args:tt)* )? ) $ty:ty ) => {
             #[allow(unused_qualifications)]
-            impl $( < $($args)* > )? crate::Writable for $ty {
+            impl $( < $($args)* > )? $crate::Writable for $ty {
                 fn write<W: ::std::io::Write>(self, writer: &mut W) {
-                    crate::Writable::write(&self, writer)
+                    $crate::Writable::write(&self, writer)
                 }
             }
 
             #[allow(unused_qualifications)]
-            impl $( < $($args)* > )? crate::Writable for &mut $ty {
+            impl $( < $($args)* > )? $crate::Writable for &mut $ty {
                 fn write<W: ::std::io::Write>(self, writer: &mut W) {
-                    crate::Writable::write(&*self, writer)
+                    $crate::Writable::write(&*self, writer)
                 }
             }
         };
@@ -525,7 +549,7 @@ mod writable {
     #[macro_export]
     macro_rules! def_wr_and_disp_by_ref {
         ( ( $( for $($args:tt)* )? ) $ty:ty ) => {
-            crate::def_wr_by_ref!( ( $( for $($args)* )? ) $ty );
+            $crate::def_wr_by_ref!( ( $( for $($args)* )? ) $ty );
 
             impl $( < $($args)* > )? core::fmt::Display for $ty {
                 fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) ->  Result<(), core::fmt::Error> {
@@ -549,8 +573,8 @@ mod writable {
         impl((T: Display, E: Display)) (Writable) for (Result<T, E>) () {
             fn write<W: Write>(self, writer: &mut W) {
                 match self {
-                    Ok(ok) => write!(writer, "{}", ok).unwrap(),
-                    Err(err) => write!(writer, "{}", err).unwrap(),
+                    Ok(ok) => write!(writer, "{ok}").unwrap(),
+                    Err(err) => write!(writer, "{err}").unwrap(),
                 }
             }
         }
@@ -754,10 +778,10 @@ mod separated_tuple {
     {
         fn write<W: Write>(self, writer: &mut W) {
             if let Some(prefix) = self.prefix.into_option() {
-                write!(writer, "{}", prefix).unwrap();
+                write!(writer, "{prefix}").unwrap();
             }
             if let Some(suffix) = self.suffix.into_option() {
-                write!(writer, "{}", suffix).unwrap();
+                write!(writer, "{suffix}").unwrap();
             }
         }
     }
@@ -897,20 +921,20 @@ mod separated_iterator {
     {
         fn write<W: Write>(self, writer: &mut W) {
             if let Some(prefix) = self.prefix.into_option() {
-                write!(writer, "{}", prefix).unwrap();
+                write!(writer, "{prefix}").unwrap();
             }
             let mut iter = self.value.into_iter();
             if let Some(first) = iter.next() {
                 first.write(writer);
                 for item in iter {
                     if let Some(separator) = self.separator.into_option() {
-                        write!(writer, "{}", separator).unwrap();
+                        write!(writer, "{separator}").unwrap();
                     }
                     item.write(writer);
                 }
             }
             if let Some(suffix) = self.suffix.into_option() {
-                write!(writer, "{}", suffix).unwrap();
+                write!(writer, "{suffix}").unwrap();
             }
         }
     }
@@ -989,7 +1013,9 @@ mod collections {
     macro_rules! hs {
         () => { std::collections::HashSet::new() };
         ($($x:expr),+ $(,)?) => {{
-            let mut collection = std::collections::HashSet::with_capacity([$(crate::replace_expr!($x ())),+].len());
+            let mut collection = std::collections::HashSet::with_capacity(
+                [$($crate::replace_expr!($x ())),+].len()
+            );
             $( let _ = collection.insert($x); )+
             collection
         }};
@@ -999,7 +1025,9 @@ mod collections {
     macro_rules! hm {
         () => { std::collections::HashMap::new() };
         ($(($k:expr, $v:expr)),+ $(,)?) => {{
-            let mut collection = std::collections::HashMap::with_capacity([$(crate::replace_expr!($v ())),+].len());
+            let mut collection = std::collections::HashMap::with_capacity(
+                [$($crate::replace_expr!($v ())),+].len()
+            );
             $( let _ = collection.insert($k, $v); )+
             collection
         }};

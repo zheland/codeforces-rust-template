@@ -381,6 +381,7 @@ mod modular {
     }
 
     impl<T, M> Modular<T, M> {
+        #[must_use]
         pub fn pow<U>(self, exp: U) -> Self
         where
             T: ModularPow<U>,

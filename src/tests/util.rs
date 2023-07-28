@@ -1,15 +1,7 @@
+use std::hint::black_box;
 use std::io::BufReader;
 
 use crate::{LineReader, WordWriter};
-
-#[inline(never)]
-pub fn black_box<D>(input: D) -> D {
-    unsafe {
-        let output = std::ptr::read_volatile(&input);
-        std::mem::forget(input);
-        output
-    }
-}
 
 pub fn rdtsc_perf<I, O, S, R>(mut setup: S, mut routine: R, samples: usize) -> u64
 where

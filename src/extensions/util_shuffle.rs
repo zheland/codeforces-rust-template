@@ -4,6 +4,7 @@ mod util_shuffle {
     use rand_chacha::ChaCha8Rng;
 
     pub trait Shuffle {
+        #[must_use]
         fn shuffle(self, seed: u64) -> Self;
     }
 

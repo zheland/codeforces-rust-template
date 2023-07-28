@@ -117,6 +117,7 @@ mod math_binomial {
     where
         T: Copy + Sub<Output = T> + Ord,
     {
+        #[must_use]
         pub fn left(&self) -> Self {
             Self {
                 value: self.value,
@@ -147,6 +148,7 @@ mod math_binomial {
     where
         T: Add<Output = T> + Copy + MulDiv + One + Sub<Output = T>,
     {
+        #[must_use]
         pub fn dec_n(&self) -> Binomial<T> {
             Self {
                 value: self.value.mul_div(self.n - self.k, self.n),
@@ -155,6 +157,7 @@ mod math_binomial {
             }
         }
 
+        #[must_use]
         pub fn inc_n(&self) -> Binomial<T> {
             Self {
                 value: self
@@ -165,6 +168,7 @@ mod math_binomial {
             }
         }
 
+        #[must_use]
         pub fn dec_nk(&self) -> Binomial<T> {
             Self {
                 value: self.value.mul_div(self.k, self.n),
@@ -173,6 +177,7 @@ mod math_binomial {
             }
         }
 
+        #[must_use]
         pub fn inc_nk(&self) -> Binomial<T> {
             Self {
                 value: self.value.mul_div(self.n + T::one(), self.k + T::one()),
@@ -181,6 +186,7 @@ mod math_binomial {
             }
         }
 
+        #[must_use]
         pub fn dec_k(&self) -> Binomial<T> {
             Self {
                 value: self.value.mul_div(self.k, self.n + T::one() - self.k),
@@ -189,6 +195,7 @@ mod math_binomial {
             }
         }
 
+        #[must_use]
         pub fn inc_k(&self) -> Binomial<T> {
             Self {
                 value: self.value.mul_div(self.n - self.k, self.k + T::one()),

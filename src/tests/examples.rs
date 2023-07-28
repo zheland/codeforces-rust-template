@@ -4,13 +4,10 @@ use std::thread;
 use crate::tests::TrimLines;
 use crate::Io;
 
-#[derive(Clone, Debug, Default)]
-pub struct TeeWriter(Vec<u8>);
-
 #[allow(single_use_lifetimes)]
 pub fn test_with_examples<F1>(problem: F1, examples: &'static str)
 where
-    F1: 'static + Clone + FnOnce(&mut Io<BufReader<&[u8]>, &mut TeeWriter>) + Send + Sync,
+    F1: 'static + Clone + FnOnce(&mut Io<BufReader<&[u8]>, &mut Vec<u8>>) + Send + Sync,
 {
     let mut is_ok = true;
     let mut splitted = examples.split_whitespace();
@@ -28,22 +25,33 @@ where
                 assert_eq!(example.len(), 2);
                 let input = example[0].to_owned();
                 let trimmed_input = input.trim_lines();
-                let mut output = TeeWriter::default();
-                let mut io = Io::new(BufReader::new(trimmed_input.as_bytes()), &mut output);
                 for line in trimmed_input.lines() {
-                    println!("< {}", line);
+                    println!("< {line}");
                 }
-                problem(&mut io);
-                let output = String::from_utf8(output.0).unwrap();
+                let mut output = Vec::new();
+                let result = {
+                    let output = &mut output;
+                    thread::scope(move |scope| {
+                        scope
+                            .spawn(move || {
+                                let mut io =
+                                    Io::new(BufReader::new(trimmed_input.as_bytes()), output);
+                                problem(&mut io);
+                            })
+                            .join()
+                    })
+                };
+                let output = String::from_utf8(output).unwrap();
                 let expected = example[1].trim_lines();
-                (input, output, expected)
+                (input, output, expected, result.is_ok())
             })
         })
         .collect();
 
     for handle in handles {
-        let (input, output, expected) = handle.join().unwrap();
-        if output != expected {
+        let (input, output, expected, is_succeed) = handle.join().unwrap();
+        let is_invalid_output = output != expected;
+        if is_invalid_output || !is_succeed {
             let mut diff = String::new();
             let mut output_lines = output.trim_end().split('\n');
             let mut answer_lines = expected.trim_end().split('\n');
@@ -73,20 +81,26 @@ where
             #[allow(clippy::explicit_write, clippy::write_literal)]
             writeln!(
                 io::stderr(),
-                "{}\nInput:\n{}Output:\n{}Answer:\n{}Diff:\n{}",
-                "\x1b[0;31mError: Invalid output.\x1b[0m",
+                "\x1b[0;31mError: {}.\x1b[0m\nInput:\n{}Output:\n{}Answer:\n{}Diff:\n{}",
+                if !is_succeed {
+                    "panicked"
+                } else if is_invalid_output {
+                    "invalid output"
+                } else {
+                    ""
+                },
                 input
                     .trim_lines()
                     .lines()
-                    .map(|line| format!("    {}\n", line))
+                    .map(|line| format!("    {line}\n"))
                     .collect::<String>(),
                 output
                     .lines()
-                    .map(|line| format!("    {}\n", line))
+                    .map(|line| format!("    {line}\n"))
                     .collect::<String>(),
                 expected
                     .lines()
-                    .map(|line| format!("    {}\n", line))
+                    .map(|line| format!("    {line}\n"))
                     .collect::<String>(),
                 diff
             )
@@ -95,15 +109,4 @@ where
         }
     }
     assert!(is_ok);
-}
-
-impl Write for TeeWriter {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        print!("{}", unsafe { std::str::from_utf8_unchecked(buf) });
-        self.0.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.0.flush()
-    }
 }

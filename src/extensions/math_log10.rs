@@ -12,8 +12,13 @@ mod math_log10 {
         Self: Sized,
     {
         fn log10_floor(self) -> u32;
+
         fn log10_ceil(self) -> u32;
+
+        #[must_use]
         fn round_log10_floor(self) -> Self;
+
+        #[must_use]
         fn round_log10_ceil(self) -> Self;
     }
 

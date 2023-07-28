@@ -5,8 +5,9 @@ use crate::into_vec::IntoVec;
 
 #[test]
 fn test_bitvec() {
-    let as_vec =
-        |bitvec: &BitVec| -> Vec<i8> { (0..bitvec.len()).map(|j| bitvec.get(j) as i8).collect() };
+    let as_vec = |bitvec: &BitVec| -> Vec<i8> {
+        (0..bitvec.len()).map(|j| i8::from(bitvec.get(j))).collect()
+    };
 
     let bitvec = BitVec::new();
     assert_eq!(as_vec(&bitvec), []);

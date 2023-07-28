@@ -1,6 +1,7 @@
 use core::iter::FusedIterator;
+use std::hint::black_box;
 
-use crate::tests::{black_box, rdtsc_perf};
+use crate::tests::rdtsc_perf;
 use crate::{btm, bts, gcd, hm, hs, lcm, wrap, DedupCount, IntoVec, Primes, Sortable};
 
 #[test]
@@ -224,7 +225,7 @@ fn test_primes_eq() {
     for len in vec![0..16, 256..292, 1000..1001].into_iter().flatten() {
         let primes = Primes::new(len);
         let primes_full = FullPrimesSieve::new(len);
-        println!("{}", len);
+        println!("{len}");
         assert_eq!(primes.iter().into_vec(), primes_full.iter().into_vec());
         for j in 0..len.min(8) {
             assert_eq!(
@@ -233,7 +234,7 @@ fn test_primes_eq() {
             );
         }
         for j in 0..len {
-            println!("{} {}", len, j);
+            println!("{len} {j}");
             assert_eq!(primes.get_sieve_value(j), primes_full.sieve()[j]);
             assert_eq!(primes.is_prime(j), primes_full.is_prime(j));
             assert_eq!(
@@ -351,136 +352,10 @@ fn test_sort_rev() {
     let mut a = [100, 2, 50, 3, 600, 9, 2, 29];
     let result = [600, 100, 50, 29, 9, 3, 2, 2];
     let mut b = a;
-    let mut c = a;
     a.sort_rev();
     b.sort_unstable_rev();
-    c.insertion_sort_rev();
     assert_eq!(a, result);
     assert_eq!(b, result);
-    assert_eq!(c, result);
-}
-
-#[test]
-fn test_insertion_sort() {
-    use rand::Rng;
-
-    let mut rng = rand::thread_rng();
-    for _ in 0..256 {
-        let n = rng.gen_range(0..256);
-        let mut a: Vec<u64> = (0..n).map(|_| rng.gen_range(0..65_536)).collect();
-        let mut c = a.clone();
-        a.insertion_sort();
-        c.sort_unstable();
-        assert_eq!(a, c);
-    }
-}
-
-#[test]
-fn test_insertion_sort_faster_on_small_arrays() {
-    use rand::Rng;
-
-    const SAMPLES: usize = 256;
-    const MIN_LENGTH: usize = 2;
-    const MAX_LENGTH: usize = 8;
-    const NUM_ITERATIONS: usize = 64;
-    const MIN_SUCCESS_RATE: f64 = 0.6;
-
-    let mut rng = rand::thread_rng();
-    let mut oks = 0;
-    let mut fails = 0;
-    for n in MIN_LENGTH..MAX_LENGTH {
-        for _ in 0..NUM_ITERATIONS {
-            let array: Vec<i64> = (0..n).map(|_| rng.gen_range(0..65_536)).collect();
-            let sort_time = measure_sort_time(&array[..], SAMPLES);
-            if sort_time.insertion_sort_time < sort_time.sort_time
-                && sort_time.insertion_sort_time < sort_time.sort_unstable_time
-            {
-                oks += 1;
-            } else {
-                fails += 1;
-            }
-        }
-    }
-    #[allow(clippy::cast_lossless)]
-    let success_rate = oks as f64 / (oks + fails) as f64;
-    assert!(
-        success_rate >= MIN_SUCCESS_RATE,
-        "Success rate {} excess minimal success rate {}",
-        success_rate,
-        MIN_SUCCESS_RATE
-    );
-}
-
-#[test]
-fn test_insertion_sort_longer_on_large_arrays() {
-    use rand::Rng;
-
-    const SAMPLES: usize = 16;
-    const MIN_LENGTH: usize = 256;
-    const MAX_LENGTH: usize = 288;
-    const NUM_ITERATIONS: usize = 4;
-    const MIN_SUCCESS_RATE: f64 = 1.0;
-
-    let mut rng = rand::thread_rng();
-    let mut oks = 0;
-    let mut fails = 0;
-    for n in MIN_LENGTH..MAX_LENGTH {
-        for _ in 0..NUM_ITERATIONS {
-            let array: Vec<i64> = (0..n).map(|_| rng.gen_range(0..65_536)).collect();
-            let sort_time = measure_sort_time(&array[..], SAMPLES);
-            if sort_time.insertion_sort_time > sort_time.sort_time
-                && sort_time.insertion_sort_time > sort_time.sort_unstable_time
-            {
-                oks += 1;
-            } else {
-                fails += 1;
-            }
-        }
-    }
-    #[allow(clippy::cast_lossless)]
-    let success_rate = oks as f64 / (oks + fails) as f64;
-    assert!(
-        success_rate >= MIN_SUCCESS_RATE,
-        "Success rate {} excess minimal success rate {}",
-        success_rate,
-        MIN_SUCCESS_RATE
-    );
-}
-
-struct SortTime {
-    sort_time: u64,
-    sort_unstable_time: u64,
-    insertion_sort_time: u64,
-}
-
-fn measure_sort_time(slice: &[i64], samples: usize) -> SortTime {
-    SortTime {
-        sort_time: rdtsc_perf(
-            || slice.to_vec(),
-            |mut input| {
-                #[allow(clippy::stable_sort_primitive)]
-                input.sort();
-                input
-            },
-            samples,
-        ),
-        sort_unstable_time: rdtsc_perf(
-            || slice.to_vec(),
-            |mut input| {
-                input.sort_unstable();
-                input
-            },
-            samples,
-        ),
-        insertion_sort_time: rdtsc_perf(
-            || slice.to_vec(),
-            |mut input| {
-                input.insertion_sort();
-                input
-            },
-            samples,
-        ),
-    }
 }
 
 // ========

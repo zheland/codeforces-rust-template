@@ -5,8 +5,13 @@ mod math_log2 {
         Self: Sized,
     {
         fn log2_floor(self) -> u32;
+
         fn log2_ceil(self) -> u32;
+
+        #[must_use]
         fn round_log2_floor(self) -> Self;
+
+        #[must_use]
         fn round_log2_ceil(self) -> Self;
     }
 
@@ -17,7 +22,7 @@ mod math_log2 {
                     fn log2_floor(self) -> u32 {
                         use core::mem::size_of;
                         assert!(self > 0);
-                        (size_of::<Self>() * 8) as u32 - self.leading_zeros() - 1
+                        Self::BITS - self.leading_zeros() - 1
                     }
 
                     fn log2_ceil(self) -> u32 {
