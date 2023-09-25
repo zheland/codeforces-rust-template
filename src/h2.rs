@@ -642,8 +642,8 @@ mod remaining_bytes {
     }
 }
 
-use wort_start::*;
-mod wort_start {
+use word_start::*;
+mod word_start {
     use crate::{Readable, Reader};
 
     #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
