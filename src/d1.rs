@@ -287,6 +287,14 @@ mod writer_ext {
             self.wo1("NO");
             self
         }
+
+        fn yes_no(&mut self, value: bool) -> &mut Self {
+            if value {
+                self.yes()
+            } else {
+                self.no()
+            }
+        }
     }
 
     impl<R, W: Write> WriterExt for Io<R, W> {
