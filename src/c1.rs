@@ -119,7 +119,7 @@ pub fn main() {
 
 #[test]
 fn test_examples() {
-    test_with_examples(|io| problem(io), EXAMPLES);
+    test_with_examples(|io| problem(io), EXAMPLES, true);
 }
 
 #[test]

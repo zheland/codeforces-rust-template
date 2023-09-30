@@ -5,8 +5,11 @@ use crate::tests::TrimLines;
 use crate::Io;
 
 #[allow(single_use_lifetimes)]
-pub fn test_with_examples<F1>(problem: F1, examples: &'static str)
-where
+pub fn test_with_examples<F1>(
+    problem: F1,
+    examples: &'static str,
+    should_use_multiple_threads: bool,
+) where
     F1: 'static + Clone + FnOnce(&mut Io<BufReader<&[u8]>, &mut Vec<u8>>) + Send + Sync,
 {
     let mut is_ok = true;
@@ -20,7 +23,7 @@ where
         .map(|case| {
             let problem = problem.clone();
             let io_separator = io_separator.clone();
-            thread::spawn(move || {
+            let handle = thread::spawn(move || {
                 let example: Vec<&str> = case.split(&io_separator).collect();
                 assert_eq!(example.len(), 2);
                 let input = example[0].to_owned();
@@ -44,7 +47,13 @@ where
                 let output = String::from_utf8(output).unwrap();
                 let expected = example[1].trim_lines();
                 (input, output, expected, result.is_ok())
-            })
+            });
+            if should_use_multiple_threads {
+                handle
+            } else {
+                let data = handle.join().unwrap();
+                thread::spawn(move || data)
+            }
         })
         .collect();
 
