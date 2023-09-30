@@ -1221,9 +1221,13 @@ mod bool_ext {
 
 use vec_ext::*;
 mod vec_ext {
+    use std::cmp::Ordering;
+    use std::mem::replace;
+
     pub trait VecExt<T> {
         fn wc(capacity: usize) -> Self;
         fn set_or_push(&mut self, j: usize, value: T);
+        fn swap_insert(&mut self, j: usize, value: T);
     }
 
     impl<T> VecExt<T> for Vec<T> {
@@ -1236,6 +1240,23 @@ mod vec_ext {
                 self.push(value);
             } else {
                 self[j] = value;
+            }
+        }
+
+        fn swap_insert(&mut self, j: usize, value: T) {
+            match j.cmp(&self.len()) {
+                Ordering::Less => {
+                    let last = replace(&mut self[j], value);
+                    self.push(last);
+                }
+                Ordering::Equal => self.push(value),
+                Ordering::Greater => {
+                    panic!(
+                        "index out of bounds: the len is {} but the index is {}",
+                        self.len(),
+                        j,
+                    );
+                }
             }
         }
     }
