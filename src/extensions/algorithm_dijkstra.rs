@@ -122,8 +122,7 @@ mod algorithm_dijkstra {
             for (node_id, dist) in initial {
                 let _ = queue.insert((dist, node_id, None));
             }
-            while let Some(item) = queue.iter().next().cloned() {
-                let _ = queue.remove(&item);
+            while let Some(item) = queue.pop_first() {
                 let (source_dist, source_node_id, parent_node_id) = item;
                 if dists[source_node_id].is_some() {
                     continue;
