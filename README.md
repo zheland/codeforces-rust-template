@@ -14,9 +14,17 @@ It contains many auxiliary functions for I/O, math and algorithms.
   can be used to solve problems from the archive or for experiments.
 - The extensions folder contains a large number of additional modules,
   that are not included in the `template.rs` due to the size limit of 64kilobytes.
-- Use `restart.sh` to reset all binary source files to `template.rs`.
+- Use `restart.sh` to reset all binary source files to `template.rs`
+  and to run all the libraries tests.
 - Use `watch.sh` to start watch script that run tests for modified source files.
-- Use `re!(VecWord).0` to read the word, e.g. a sequence of ASCII characters surrounded by whitespace characters;
+
+## Tips
+- Use `re!(VecWord).0` to read the word, e.g. a sequence of ASCII characters
+  surrounded by whitespace characters;
+- Use `io.li(a.wo())` to write space-separated values of the `a` variable,
+  if the `a` variable is a tuple, iterator or iterable collection.
+- Check out `src/tests/libtests` directory to explore the use of different types,
+  traits and functions.
 
 ## License
 
