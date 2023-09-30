@@ -2,7 +2,9 @@ use core::iter::FusedIterator;
 use std::hint::black_box;
 
 use crate::tests::rdtsc_perf;
-use crate::{btm, bts, gcd, hm, hs, lcm, wrap, DedupCount, IntoVec, Primes, Sortable};
+use crate::{
+    btm, bts, div_rem_u128, gcd, hm, hs, lcm, wrap, DedupCount, IntoVec, Primes, Sortable,
+};
 
 #[test]
 fn test_gcd() {
@@ -356,6 +358,40 @@ fn test_sort_rev() {
     b.sort_unstable_rev();
     assert_eq!(a, result);
     assert_eq!(b, result);
+}
+
+#[test]
+fn test_div_rem_u128() {
+    let values = [
+        0_u128,
+        1,
+        2,
+        3,
+        5,
+        (1 << 12) + 123,
+        (1 << 20) + 12_345,
+        (1 << 32) + 1_234_567,
+        u128::from(u64::MAX),
+        (1 << 64) + 123_456_789,
+        u128::MAX,
+    ];
+    for divident in values {
+        for divisor in values {
+            if divisor == 0 || divisor > u128::from(u64::MAX) {
+                continue;
+            }
+            let quot = divident / divisor;
+            let rem = divident % divisor;
+            #[allow(clippy::cast_possible_truncation)]
+            if quot < u128::from(u64::MAX) {
+                assert_eq!(
+                    div_rem_u128(divident, divisor as u64),
+                    (quot as u64, rem as u64),
+                    "{divident}/{divisor}",
+                );
+            }
+        }
+    }
 }
 
 // ========

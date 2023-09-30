@@ -1995,3 +1995,35 @@ mod modular_ops {
         }
     }
 }
+
+use math_ext::*;
+pub mod math_ext {
+    #[inline]
+    #[must_use]
+    pub fn div_rem_u128(divident: u128, divisor: u64) -> (u64, u64) {
+        #[cfg(target_arch = "x86_64")]
+        {
+            let hi: u64 = (divident >> 64) as u64;
+            debug_assert!(hi < divisor);
+            #[allow(clippy::cast_possible_truncation)]
+            let lo: u64 = divident as u64;
+            let mut quot = lo;
+            let mut rem = hi;
+            unsafe {
+                std::arch::asm!(
+                    "div {divisor}",
+                    divisor = in(reg) divisor,
+                    inout("rax") quot,
+                    inout("rdx") rem,
+                    options(pure, nomem, nostack)
+                );
+                (quot, rem)
+            }
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        {
+            let (quot, rem) = num::integer::div_rem(divident, divisor as u128);
+            (quot as u64, rem as u64)
+        }
+    }
+}
