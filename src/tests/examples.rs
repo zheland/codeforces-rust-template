@@ -62,8 +62,8 @@ pub fn test_with_examples<F1>(
         let is_invalid_output = output != expected;
         if is_invalid_output || !is_succeed {
             let mut diff = String::new();
-            let mut output_lines = output.trim_end().split('\n');
-            let mut answer_lines = expected.trim_end().split('\n');
+            let mut output_lines = output.trim_end().split('\n').enumerate();
+            let mut answer_lines = expected.trim_end().split('\n').enumerate();
             loop {
                 let (output_line, answer_line) = (output_lines.next(), answer_lines.next());
                 if output_line.is_none() && answer_line.is_none() {
@@ -73,17 +73,33 @@ pub fn test_with_examples<F1>(
                     (None, None) => break,
                     (Some(output_line), Some(answer_line)) => {
                         if output_line == answer_line {
-                            diff = diff + "\x1b[0;33m    " + output_line + "\x1b[0m\n";
+                            diff = format!("{diff}\x1b[0;33m    {}\x1b[0m\n", output_line.1);
                         } else {
-                            diff = diff + "\x1b[0;31m  - " + output_line + "\x1b[0m\n";
-                            diff = diff + "\x1b[0;32m  + " + answer_line + "\x1b[0m\n";
+                            diff = format!(
+                                "{diff}\x1b[0;31m  - {}\x1b[0m (line {})\n",
+                                output_line.1,
+                                output_line.0 + 1
+                            );
+                            diff = format!(
+                                "{diff}\x1b[0;32m  + {}\x1b[0m (line {})\n",
+                                answer_line.1,
+                                answer_line.0 + 1
+                            );
                         }
                     }
                     (Some(output_line), None) => {
-                        diff = diff + "\x1b[0;31m  - " + output_line + "\x1b[0m\n";
+                        diff = format!(
+                            "{diff}\x1b[0;31m  - {}\x1b[0m (line {})\n",
+                            output_line.1,
+                            output_line.0 + 1
+                        );
                     }
                     (None, Some(answer_line)) => {
-                        diff = diff + "\x1b[0;32m  + " + answer_line + "\x1b[0m\n";
+                        diff = format!(
+                            "{diff}\x1b[0;32m  + {}\x1b[0m (line {})\n",
+                            answer_line.1,
+                            answer_line.0 + 1
+                        );
                     }
                 }
             }
