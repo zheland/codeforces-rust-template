@@ -45,6 +45,8 @@ use core::iter::{empty, once, repeat, successors};
 use core::marker::PhantomData;
 use core::mem::{replace, swap, take};
 use core::str::{from_utf8, FromStr};
+use std::collections::btree_map::Entry as BTreeMapEntry;
+use std::collections::hash_map::Entry as HashMapEntry;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
 use std::io::{
     sink, stderr, stdin, stdout, BufRead, BufReader, BufWriter, Error as IoError,
