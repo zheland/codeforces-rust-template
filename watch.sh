@@ -18,7 +18,7 @@ while true; do
                 touch $touch_path
                 # https://codeforces.com/blog/entry/121114
                 RUST_MIN_STACK=268435456 cargo test --bin "$bin_name" || true
-                size=$(stat --printf="%s" "$bin_path")
+                size=$(( "$( stat --printf="%s" "$bin_path" ) + $( cat "$bin_path" | wc -l )" ))
                 if [ "$size" -gt "65536" ]; then
                     printf '%s size: \e[0;31m%+5s/65536\e[0m bytes\n' "$bin_path" "$size"
                 elif [ "$size" -gt "60000" ]; then
