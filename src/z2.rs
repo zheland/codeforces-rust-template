@@ -53,6 +53,7 @@ use std::io::{
     ErrorKind as IoErrorKind, Result as IoResult, Stderr, Stdin, Stdout, Write,
 };
 use std::sync::Arc;
+use std::time::Duration;
 
 #[cfg(test)]
 use crate::tests::{test_with_examples, test_with_interactor, ChannelReader, ChannelWriter};
@@ -75,6 +76,7 @@ pub fn problem<I: ReaderExt + WriterExt>(io: &mut I) {
     }
 }
 
+const TEST_TIMEOUT: Duration = Duration::from_secs(1);
 const EXAMPLES: &str = r####"
 ----
 ====
@@ -120,8 +122,28 @@ pub fn main() {
 }
 
 #[test]
-fn test_examples() {
-    test_with_examples(|io| problem(io), EXAMPLES, true);
+fn test_example1() {
+    test_with_examples(|io| problem(io), EXAMPLES, 0..=0, TEST_TIMEOUT);
+}
+
+#[test]
+fn test_example2() {
+    test_with_examples(|io| problem(io), EXAMPLES, 1..=1, TEST_TIMEOUT);
+}
+
+#[test]
+fn test_example3() {
+    test_with_examples(|io| problem(io), EXAMPLES, 2..=2, TEST_TIMEOUT);
+}
+
+#[test]
+fn test_example4() {
+    test_with_examples(|io| problem(io), EXAMPLES, 3..=3, TEST_TIMEOUT);
+}
+
+#[test]
+fn test_examples_rest() {
+    test_with_examples(|io| problem(io), EXAMPLES, 4.., TEST_TIMEOUT);
 }
 
 #[test]
@@ -129,7 +151,11 @@ fn test_examples() {
 fn test_interactor() {
     let presets = [Preset {}];
     for preset in &presets {
-        test_with_interactor(problem, |io| interactor(io, preset));
+        test_with_interactor(
+            problem,
+            |io| interactor(io, preset),
+            Duration::from_secs(10),
+        );
     }
 }
 

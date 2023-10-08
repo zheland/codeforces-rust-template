@@ -21,6 +21,8 @@ pub mod math_permutations;
 pub mod math_subsequences;
 pub mod modular;
 pub mod prime_factorize;
+pub mod rooted_tree;
+pub mod rooted_tree_with_binary_lifting;
 pub mod util_each;
 pub mod util_each_combination;
 pub mod util_each_permutation;

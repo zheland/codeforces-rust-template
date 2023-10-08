@@ -12,6 +12,7 @@ pub struct ChannelReader {
     recv: Receiver<Box<[u8]>>,
     buffer: Box<[u8]>,
     offset: usize,
+    timeout: Duration,
 }
 
 impl ChannelWriter {
@@ -24,11 +25,12 @@ impl ChannelWriter {
 }
 
 impl ChannelReader {
-    pub fn new(recv: Receiver<Box<[u8]>>) -> Self {
+    pub fn new(recv: Receiver<Box<[u8]>>, timeout: Duration) -> Self {
         Self {
             recv,
             buffer: Box::new([]),
             offset: 0,
+            timeout,
         }
     }
 }
@@ -61,7 +63,7 @@ impl Read for ChannelReader {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         loop {
             if self.offset >= self.buffer.len() {
-                match self.recv.recv_timeout(Duration::from_secs(1)) {
+                match self.recv.recv_timeout(self.timeout) {
                     Ok(buffer) => {
                         self.buffer = buffer;
                         self.offset = 0;
