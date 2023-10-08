@@ -16,7 +16,8 @@ while true; do
             touch_path="target/touch/$bin_name"
             if [[ $touch_path -ot $bin_path ]]; then
                 touch $touch_path
-                cargo test --bin "$bin_name" || true
+                # https://codeforces.com/blog/entry/121114
+                RUST_MIN_STACK=268435456 cargo test --bin "$bin_name" || true
                 size=$(stat --printf="%s" "$bin_path")
                 if [ "$size" -gt "65536" ]; then
                     printf '%s size: \e[0;31m%+5s/65536\e[0m bytes\n' "$bin_path" "$size"
