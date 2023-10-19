@@ -224,19 +224,19 @@ fn test_primes_perf() {
 
 #[test]
 fn test_primes_eq() {
-    for len in vec![0..16, 256..292, 1000..1001].into_iter().flatten() {
-        let primes = Primes::new(len);
-        let primes_full = FullPrimesSieve::new(len);
-        println!("{len}");
+    for max in vec![0..16, 256..292, 1000..1001].into_iter().flatten() {
+        let primes = Primes::new(max);
+        let primes_full = FullPrimesSieve::new(max);
+        println!("{max}");
         assert_eq!(primes.iter().into_vec(), primes_full.iter().into_vec());
-        for j in 0..len.min(8) {
+        for j in 0..max.min(8) {
             assert_eq!(
                 primes.iter_from(j).into_vec(),
                 primes_full.iter_from(j).into_vec()
             );
         }
-        for j in 0..len {
-            println!("{len} {j}");
+        for j in 0..max {
+            println!("{max} {j}");
             assert_eq!(primes.get_sieve_value(j), primes_full.sieve()[j]);
             assert_eq!(primes.is_prime(j), primes_full.is_prime(j));
             assert_eq!(
@@ -400,7 +400,8 @@ fn test_div_rem_u128() {
 pub struct FullPrimesSieve(Vec<usize>);
 
 impl FullPrimesSieve {
-    pub fn new(len: usize) -> Self {
+    pub fn new(max: usize) -> Self {
+        let len = max + 1;
         let mut data = vec![0; len];
         #[allow(
             clippy::cast_precision_loss,

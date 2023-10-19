@@ -1719,7 +1719,8 @@ mod primes {
     }
 
     impl Primes {
-        pub fn new(len: usize) -> Self {
+        pub fn new(max: usize) -> Self {
+            let len = max + 1;
             let odds_len = len / 2;
             let mut sieve = vec![0; odds_len];
             #[allow(
