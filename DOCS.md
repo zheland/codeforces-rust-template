@@ -70,17 +70,17 @@ $$
 $$
 \begin{matrix}
 \begin{matrix} & k \\ n & \\ \end{matrix}
-   & 0 & 1 &  2 &  3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 \\
+   & 0 &  1 &  2 &   3 &   4 &   5 &   6 &   7 &  8 &  9 & 10 \\
  0 & 1 \\
- 1 & 1 & 1 \\
- 2 & 1 & 2 & 1 \\
- 3 & 1 & 3 & 3 & 1 \\
- 4 & 1 & 4 & 6 & 4 & 1 \\
- 5 & 1 & 5 & 10 & 10 & 5 & 1 \\
- 6 & 1 & 6 & 15 & 20 & 15 & 6 & 1 \\
- 7 & 1 & 7 & 21 & 35 & 35 & 21 & 7 & 1 \\
- 8 & 1 & 8 & 28 & 56 & 70 & 56 & 28 & 8 & 1 \\
- 9 & 1 & 9 & 36 & 84 & 126 & 126 & 84 & 36 & 9 & 1 \\
+ 1 & 1 &  1 \\
+ 2 & 1 &  2 &  1 \\
+ 3 & 1 &  3 &  3 &   1 \\
+ 4 & 1 &  4 &  6 &   4 &   1 \\
+ 5 & 1 &  5 & 10 &  10 &   5 &   1 \\
+ 6 & 1 &  6 & 15 &  20 &  15 &   6 &   1 \\
+ 7 & 1 &  7 & 21 &  35 &  35 &  21 &   7 &   1 \\
+ 8 & 1 &  8 & 28 &  56 &  70 &  56 &  28 &   8 &  1 \\
+ 9 & 1 &  9 & 36 &  84 & 126 & 126 &  84 &  36 &  9 &  1 \\
 10 & 1 & 10 & 45 & 129 & 219 & 252 & 219 & 129 & 45 & 10 & 1 \\
 \end{matrix}
 $$
@@ -89,8 +89,8 @@ $$
 
 $$
 \begin{matrix}
-0     & 1 & 1 &  1 & 1  &  1 &  1 &  1 &   1 &   1 &   1 \\
-1     & 1 & 2 &  3 & 4  &  5 &  6 &  7 &   8 &   9 &  10 & \text{natural numbers} \\
+0     & 1 & 1 &  1 &  1 &  1 &  1 &  1 &   1 &   1 &   1 \\
+1     & 1 & 2 &  3 &  4 &  5 &  6 &  7 &   8 &   9 &  10 & \text{natural numbers} \\
 2     & 1 & 3 &  6 & 10 & 15 & 21 & 28 &  36 &  45 &  55 & \text{triangle numbers} \\
 3     & 1 & 4 & 10 & 20 & 35 & 56 & 84 & 120 & 165 & 220 & \text{tetrahedral numbers} \\
 \end{matrix}
@@ -214,3 +214,7 @@ $$
 
 https://en.wikipedia.org/wiki/Euler%27s_theorem
 https://en.wikipedia.org/wiki/Fermat%27s_little_theorem
+
+## Recommendations
+- Add a specific value to each value in a subsequence - Difference array?
+- Update values and calculate prefix sums - Fenwick tree?
