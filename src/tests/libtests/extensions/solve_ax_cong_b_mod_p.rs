@@ -1,4 +1,4 @@
-use crate::extensions::util_solve_ax_cong_b_mod_p::solve_ax_cong_b_mod_p;
+use crate::extensions::solve_ax_cong_b_mod_p::solve_ax_cong_b_mod_p;
 
 #[test]
 fn test_solve_ax_cong_b_mod_p() {

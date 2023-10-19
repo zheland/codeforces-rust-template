@@ -1,5 +1,5 @@
-pub use util_solve_ax_cong_b_mod_p::*;
-mod util_solve_ax_cong_b_mod_p {
+pub use solve_ax_cong_b_mod_p::*;
+mod solve_ax_cong_b_mod_p {
     use core::ops::{Div, Mul, Rem};
 
     use crate::{gcd, Abs, ModularInv, Zero};

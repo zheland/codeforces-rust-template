@@ -4,6 +4,11 @@
 $$gcd(a, b) = gcd(a - b, a) \\ gcd(14, 10) = gcd(4, 10)$$
 https://en.wikipedia.org/wiki/Euclidean_algorithm
 
+## Extended euclidean algorithm
+
+$$ax + by = gcd(a, b)$$
+https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
+
 ## Coprime integers
 
 $$

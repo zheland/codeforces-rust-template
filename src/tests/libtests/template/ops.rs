@@ -8,6 +8,10 @@ use crate::{
 
 #[test]
 fn test_gcd() {
+    assert_eq!(gcd(0, 0), 0);
+    assert_eq!(gcd(10, 0), 10);
+    assert_eq!(gcd(0, 10), 10);
+
     assert_eq!(gcd(1, 1), 1);
     assert_eq!(gcd(2, 3), 1);
     assert_eq!(gcd(6, 15), 3);
@@ -21,7 +25,7 @@ fn test_lcm() {
     assert_eq!(lcm(2, 3), 6);
     assert_eq!(lcm(6, 15), 30);
     assert_eq!(lcm(30, 105), 210);
-    assert_eq!(gcd(321, 321), 321);
+    assert_eq!(lcm(321, 321), 321);
 }
 
 #[test]
