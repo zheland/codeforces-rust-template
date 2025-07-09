@@ -13,7 +13,7 @@ mod word_ch {
         fn read<R: Reader>(reader: &'a mut R) -> Self {
             reader.goto_word().unwrap();
             let ch: [u8; 1] = reader.read_chars().unwrap();
-            WordCh(ch[0])
+            Self(ch[0])
         }
     }
 

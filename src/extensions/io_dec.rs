@@ -49,7 +49,7 @@ mod io_dec {
                 assert!(*value >= b'0' && *value <= b'9');
                 *value -= b'0';
             }
-            DecBe(dec)
+            Self(dec)
         }
     }
 
@@ -69,14 +69,14 @@ mod io_dec {
                 *value -= b'0';
             }
             dec[0..word.len()].reverse();
-            DecLe(dec)
+            Self(dec)
         }
     }
 
     fn read_dec_be_iter<R: Reader>(reader: &'_ mut R) -> impl '_ + DoubleEndedIterator<Item = u8> {
         let word = SliceWord::read(reader);
         word.0.iter().map(|ch| {
-            assert!((b'0'..=b'9').contains(ch));
+            assert!(ch.is_ascii_digit());
             ch - b'0'
         })
     }
@@ -85,7 +85,7 @@ mod io_dec {
     impl<'a> Readable<'a> for DecBe<Vec<u8>> {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
-            DecBe(read_dec_be_iter(reader).collect())
+            Self(read_dec_be_iter(reader).collect())
         }
     }
 
@@ -93,7 +93,7 @@ mod io_dec {
     impl<'a> Readable<'a> for DecLe<Vec<u8>> {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
-            DecLe(read_dec_be_iter(reader).rev().collect())
+            Self(read_dec_be_iter(reader).rev().collect())
         }
     }
 

@@ -36,6 +36,7 @@ fn test_each() {
 
 #[test]
 fn test_each_vec() {
+    #[allow(clippy::useless_vec)] // false positive
     let vec: Vec<_> = vec![1..=2; 3].each().collect();
     assert_eq!(
         vec,

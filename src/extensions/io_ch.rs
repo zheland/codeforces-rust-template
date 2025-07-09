@@ -19,7 +19,7 @@ mod ch {
                     }
                 }
             };
-            Ch(ch[0])
+            Self(ch[0])
         }
     }
 

@@ -1,8 +1,8 @@
-use std::io::{self, BufReader, IoSlice, Write};
-use std::ops::RangeBounds;
+use core::ops::RangeBounds;
+use core::time::Duration;
+use std::io::{self, BufReader, IoSlice, Write as IoWrite};
 use std::sync::mpsc::{channel, RecvTimeoutError};
 use std::thread::{self, JoinHandle, Result as ThreadResult};
-use std::time::Duration;
 
 use crate::tests::TrimLines;
 use crate::Io;
@@ -14,6 +14,7 @@ enum Status {
     Timeout,
 }
 
+#[allow(clippy::explicit_write)]
 #[allow(single_use_lifetimes)]
 pub fn test_with_examples<F1, R>(problem: F1, examples: &'static str, range: R, timeout: Duration)
 where
@@ -77,10 +78,9 @@ where
         .collect();
 
     for (input, expected, handle) in handles {
-        let (output, status) = match handle.join_with_timeout(timeout) {
-            Some(data) => data.unwrap(),
-            None => (String::new(), Status::Timeout),
-        };
+        let (output, status) = handle
+            .join_with_timeout(timeout)
+            .map_or_else(|| (String::new(), Status::Timeout), Result::unwrap);
         let is_invalid_output = output != expected;
         let is_this_ok = match status {
             Status::Ok => true,
@@ -129,36 +129,30 @@ where
                     }
                 }
             }
-            #[allow(clippy::explicit_write, clippy::write_literal)]
-            writeln!(
-                io::stderr(),
-                "\x1b[0;31mError: {}.\x1b[0m\nInput:\n{}Output:\n{}Answer:\n{}Diff:\n{}",
-                match status {
-                    Status::Ok =>
-                        if is_invalid_output {
-                            "invalid output"
-                        } else {
-                            ""
-                        },
-                    Status::Panic => "panicked",
-                    Status::Timeout => "timeout",
-                },
-                input
-                    .trim_lines()
-                    .lines()
-                    .map(|line| format!("    {line}\n"))
-                    .collect::<String>(),
-                output
-                    .lines()
-                    .map(|line| format!("    {line}\n"))
-                    .collect::<String>(),
-                expected
-                    .lines()
-                    .map(|line| format!("    {line}\n"))
-                    .collect::<String>(),
-                diff
-            )
-            .unwrap();
+            let error_text = match status {
+                Status::Ok => {
+                    if is_invalid_output {
+                        "invalid output"
+                    } else {
+                        ""
+                    }
+                }
+                Status::Panic => "panicked",
+                Status::Timeout => "timeout",
+            };
+            writeln!(io::stderr(), "\x1b[0;31mError: {error_text}.\x1b[0m\n").unwrap();
+            for (section, data, prefix, should_trim_lines) in [
+                ("Input", input.trim(), "    ", true),
+                ("Output", &output, "    ", false),
+                ("Answer", &expected, "    ", false),
+                ("Diff", &diff, "", false),
+            ] {
+                writeln!(io::stderr(), "{section}:").unwrap();
+                for line in data.lines() {
+                    let line = if should_trim_lines { line.trim() } else { line };
+                    writeln!(io::stderr(), "{prefix}{line}").unwrap();
+                }
+            }
             is_all_ok = false;
         }
     }
@@ -192,6 +186,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct EchoWriter<T> {
     writer: T,
     prefix: &'static str,
@@ -231,24 +226,17 @@ impl<T> EchoWriter<T> {
         };
         let output = String::from_utf8_lossy(buf);
         let output = output.replace('\n', &self.new_line_and_line_prefix);
-        let output = match output.strip_suffix(&self.line_prefix) {
-            Some(output) => {
-                if output.ends_with('\n') {
-                    self.is_new_line = true;
-                    output
-                } else {
-                    output
-                }
-            }
-            None => &output,
-        };
+        let output = output.strip_suffix(&self.line_prefix).unwrap_or(&output);
+        if output.ends_with('\n') {
+            self.is_new_line = true;
+        }
         print!("{}{line_prefix}{output}{}", self.prefix, self.suffix);
     }
 }
 
-impl<T> Write for EchoWriter<T>
+impl<T> IoWrite for EchoWriter<T>
 where
-    T: Write,
+    T: IoWrite,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.echo(buf);

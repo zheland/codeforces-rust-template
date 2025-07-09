@@ -80,13 +80,12 @@ mod collection_nd_array {
             self.data
         }
 
-        pub fn dims(&self) -> &J {
+        pub const fn dims(&self) -> &J {
             &self.dims
         }
 
         fn try_offset_of_slice(&self, index: &[usize]) -> Option<usize> {
             let mut offset = 0;
-            let index = index.borrow();
             let dims = self.dims.borrow();
             let mults: &[usize] = self.mults.borrow();
             for ((&i, &m), &d) in index.iter().zip(mults.iter()).zip(dims.iter()) {
@@ -105,15 +104,10 @@ mod collection_nd_array {
         #[track_caller]
         pub fn offset_of(&self, index: J) -> usize {
             let index = index.borrow();
-            if let Some(offset) = self.try_offset_of_slice(index) {
-                offset
-            } else {
+            self.try_offset_of_slice(index).unwrap_or_else(|| {
                 let dims = self.dims.borrow();
-                panic!(
-                    "index out of bounds: the len is {:?} but the index is {:?}",
-                    dims, index
-                );
-            }
+                panic!("index out of bounds: the len is {dims:?} but the index is {index:?}");
+            })
         }
 
         pub fn get(&self, index: J) -> Option<&T> {
@@ -170,8 +164,7 @@ mod collection_nd_array {
         let prod = dims.iter().product();
         assert_eq!(
             len, prod,
-            "invalid slice length: the len is {} but the product of dimensions is {}",
-            len, prod
+            "invalid slice length: the len is {len} but the product of dimensions is {prod}"
         );
     }
 
@@ -228,6 +221,7 @@ mod collection_nd_array {
         J: Borrow<[usize]>,
         M: Borrow<[usize]>,
     {
+        #[track_caller]
         pub fn at(&self, index: usize) -> NdArray<T, &[T], &[usize], &[usize]> {
             let dims = self.dims.borrow();
             let mult: usize = dims.iter().skip(1).product();

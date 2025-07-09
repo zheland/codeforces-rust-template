@@ -1,5 +1,5 @@
+use core::hint::black_box;
 use core::iter::FusedIterator;
-use std::hint::black_box;
 
 use crate::tests::rdtsc_perf;
 use crate::{
@@ -197,8 +197,8 @@ fn test_primes_perf() {
     for j in 0..1_000_000 {
         let _ = black_box(j);
     }
-    let p1 = rdtsc_perf(|| (), |_| Primes::new(1000), 256);
-    let p2 = rdtsc_perf(|| (), |_| FullPrimesSieve::new(1000), 256);
+    let p1 = rdtsc_perf(|| (), |()| Primes::new(1000), 256);
+    let p2 = rdtsc_perf(|| (), |()| FullPrimesSieve::new(1000), 256);
     assert!(p1 < p2 * 2);
 
     let p1 = rdtsc_perf(
@@ -286,7 +286,7 @@ fn test_into_wrapped() {
     let mut a = wrap(1u32);
     assert_eq!(a.0, 1);
     a -= wrap(2);
-    assert_eq!(a.0, 4_294_967_295);
+    assert_eq!(a.0, 0xFFFF_FFFF);
     a += wrap(2);
     assert_eq!(a.0, 1);
 
@@ -433,11 +433,11 @@ impl FullPrimesSieve {
         value > 1 && self.0[value] == 0
     }
 
-    pub fn iter(&self) -> FullPrimesSieveIter<'_> {
+    pub const fn iter(&self) -> FullPrimesSieveIter<'_> {
         FullPrimesSieveIter::new(self, 0)
     }
 
-    pub fn iter_from(&self, from: usize) -> FullPrimesSieveIter<'_> {
+    pub const fn iter_from(&self, from: usize) -> FullPrimesSieveIter<'_> {
         FullPrimesSieveIter::new(self, from)
     }
 
@@ -451,7 +451,7 @@ impl FullPrimesSieve {
 pub struct FullPrimesSieveIter<'a>(&'a FullPrimesSieve, usize);
 
 impl<'a> FullPrimesSieveIter<'a> {
-    pub fn new(sieve: &'a FullPrimesSieve, from: usize) -> Self {
+    pub const fn new(sieve: &'a FullPrimesSieve, from: usize) -> Self {
         Self(sieve, from)
     }
 }
@@ -479,7 +479,7 @@ impl FusedIterator for FullPrimesSieveIter<'_> {}
 pub struct FullPrimesSieveFactorizeIter<'a>(&'a FullPrimesSieve, usize);
 
 impl<'a> FullPrimesSieveFactorizeIter<'a> {
-    pub fn new(sieve: &'a FullPrimesSieve, value: usize) -> Self {
+    pub const fn new(sieve: &'a FullPrimesSieve, value: usize) -> Self {
         Self(sieve, value)
     }
 }

@@ -21,8 +21,8 @@ mod util_option_min_max {
         }
     }
 
-    impl<T: Ord> OptionMinMax<Option<T>> for Option<T> {
-        fn omin(self, other: Option<T>) -> Option<T> {
+    impl<T: Ord> OptionMinMax<Self> for Option<T> {
+        fn omin(self, other: Self) -> Self {
             match (self, other) {
                 (Some(value), Some(other)) => Some(value.min(other)),
                 (Some(value), None) => Some(value),
@@ -31,7 +31,7 @@ mod util_option_min_max {
             }
         }
 
-        fn omax(self, other: Option<T>) -> Option<T> {
+        fn omax(self, other: Self) -> Self {
             match (self, other) {
                 (Some(value), Some(other)) => Some(value.max(other)),
                 (Some(value), None) => Some(value),

@@ -1,4 +1,4 @@
-use std::iter::repeat;
+use core::iter::repeat;
 
 use crate::extensions::collection_bit_vec::BitVec;
 use crate::into_vec::IntoVec;
@@ -105,7 +105,7 @@ fn test_bitvec() {
 
 #[test]
 fn test_bitvec_eq_vec() {
-    use std::iter::repeat;
+    use core::iter::repeat;
 
     for tmpl in &[
         vec![false],

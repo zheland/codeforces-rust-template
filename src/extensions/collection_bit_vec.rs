@@ -21,11 +21,11 @@ mod collection_bit_vec {
 
         #[must_use]
         pub const fn chunk_bits() -> usize {
-            std::mem::size_of::<BitVecChunk>() * 8
+            BitVecChunk::BITS as usize
         }
 
         #[must_use]
-        pub fn offset_of(j: usize) -> (usize, usize) {
+        pub const fn offset_of(j: usize) -> (usize, usize) {
             (j / Self::chunk_bits(), j & (Self::chunk_bits() - 1))
         }
 
@@ -48,11 +48,7 @@ mod collection_bit_vec {
 
             assert!(start <= len);
             assert!(end <= len);
-            if start < end {
-                Some((Self::offset_of(start), Self::offset_of(end)))
-            } else {
-                None
-            }
+            (start < end).then(|| (Self::offset_of(start), Self::offset_of(end)))
         }
 
         #[must_use]
@@ -61,12 +57,12 @@ mod collection_bit_vec {
         }
 
         #[must_use]
-        pub fn free_bits(&self) -> usize {
+        pub const fn free_bits(&self) -> usize {
             self.free_bits
         }
 
         #[must_use]
-        pub fn next_bit_mask(&self) -> usize {
+        pub const fn next_bit_mask(&self) -> usize {
             Self::chunk_bits() - self.free_bits
         }
 
@@ -146,12 +142,10 @@ mod collection_bit_vec {
 
         #[must_use]
         pub fn try_get(&self, offset: usize) -> Option<bool> {
-            if offset < self.len() {
+            (offset < self.len()).then(|| {
                 let (j, b) = Self::offset_of(offset);
-                Some((self.chunks[j] & (1 << b)) != 0)
-            } else {
-                None
-            }
+                (self.chunks[j] & (1 << b)) != 0
+            })
         }
 
         pub fn try_set(&mut self, offset: usize, value: bool) -> Result<(), ()> {
@@ -180,30 +174,28 @@ mod collection_bit_vec {
 
         #[allow(clippy::similar_names)]
         pub fn set_range<R: RangeBounds<usize>>(&mut self, range: R, value: bool) {
-            let ((lj, lb), (rj, rb)) = if let Some(range) = self.range_of(range) {
-                range
-            } else {
+            let Some(((lj, lb), (rj, rb))) = self.range_of(range) else {
                 return;
             };
 
             if lj == rj {
-                let mask = std::usize::MAX >> (Self::chunk_bits() + lb - rb) << lb;
+                let mask = usize::MAX >> (Self::chunk_bits() + lb - rb) << lb;
                 if value {
                     self.chunks[lj] |= mask;
                 } else {
                     self.chunks[lj] &= !mask;
                 }
             } else {
-                let lmask = std::usize::MAX << lb;
+                let lmask = usize::MAX << lb;
                 let rmask = if rb == 0 {
                     None
                 } else {
-                    Some(std::usize::MAX >> (Self::chunk_bits() - rb))
+                    Some(usize::MAX >> (Self::chunk_bits() - rb))
                 };
                 if value {
                     self.chunks[lj] |= lmask;
                     for j in lj + 1..rj {
-                        self.chunks[j] = std::usize::MAX;
+                        self.chunks[j] = usize::MAX;
                     }
                     if let Some(rmask) = rmask {
                         self.chunks[rj] |= rmask;
@@ -222,21 +214,19 @@ mod collection_bit_vec {
 
         #[allow(clippy::similar_names)]
         pub fn count_ones<R: RangeBounds<usize>>(&mut self, range: R) -> u32 {
-            let ((lj, lb), (rj, rb)) = if let Some(range) = self.range_of(range) {
-                range
-            } else {
+            let Some(((lj, lb), (rj, rb))) = self.range_of(range) else {
                 return 0;
             };
 
             if lj == rj {
-                let mask = std::usize::MAX >> (Self::chunk_bits() + lb - rb) << lb;
+                let mask = usize::MAX >> (Self::chunk_bits() + lb - rb) << lb;
                 (self.chunks[lj] & mask).count_ones()
             } else {
-                let lmask = std::usize::MAX << lb;
+                let lmask = usize::MAX << lb;
                 let rmask = if rb == 0 {
                     None
                 } else {
-                    Some(std::usize::MAX >> (Self::chunk_bits() - rb))
+                    Some(usize::MAX >> (Self::chunk_bits() - rb))
                 };
                 (self.chunks[lj] & lmask).count_ones()
                     + self.chunks[lj + 1..rj]
@@ -248,7 +238,7 @@ mod collection_bit_vec {
         }
 
         #[must_use]
-        pub fn iter(&self) -> BitVecIter<'_> {
+        pub const fn iter(&self) -> BitVecIter<'_> {
             BitVecIter::new(self)
         }
     }
@@ -258,7 +248,7 @@ mod collection_bit_vec {
 
     impl<'a> BitVecIter<'a> {
         #[must_use]
-        pub fn new(bitvec: &'a BitVec) -> Self {
+        pub const fn new(bitvec: &'a BitVec) -> Self {
             Self(bitvec, 0)
         }
     }
@@ -267,13 +257,11 @@ mod collection_bit_vec {
         type Item = bool;
 
         fn next(&mut self) -> Option<Self::Item> {
-            if self.1 < self.0.len() {
+            (self.1 < self.0.len()).then(|| {
                 let value = self.0.get(self.1);
                 self.1 += 1;
-                Some(value)
-            } else {
-                None
-            }
+                value
+            })
         }
     }
 
@@ -282,7 +270,7 @@ mod collection_bit_vec {
 
     impl BitVecIntoIter {
         #[must_use]
-        pub fn new(bitvec: BitVec) -> Self {
+        pub const fn new(bitvec: BitVec) -> Self {
             Self(bitvec, 0)
         }
     }
@@ -296,17 +284,24 @@ mod collection_bit_vec {
         }
     }
 
+    impl<'a> IntoIterator for &'a BitVec {
+        type Item = bool;
+        type IntoIter = BitVecIter<'a>;
+
+        fn into_iter(self) -> BitVecIter<'a> {
+            BitVecIter::new(self)
+        }
+    }
+
     impl Iterator for BitVecIntoIter {
         type Item = bool;
 
         fn next(&mut self) -> Option<Self::Item> {
-            if self.1 < self.0.len() {
+            (self.1 < self.0.len()).then(|| {
                 let value = self.0.get(self.1);
                 self.1 += 1;
-                Some(value)
-            } else {
-                None
-            }
+                value
+            })
         }
     }
 

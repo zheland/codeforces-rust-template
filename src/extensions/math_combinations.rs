@@ -1,6 +1,6 @@
 pub use math_combinations::*;
 mod math_combinations {
-    use std::ops::Div;
+    use core::ops::Div;
 
     use crate::Factorial;
 

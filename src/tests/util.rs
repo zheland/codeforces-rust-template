@@ -1,4 +1,4 @@
-use std::hint::black_box;
+use core::hint::black_box;
 use std::io::BufReader;
 
 use crate::{LineReader, WordWriter};
@@ -10,7 +10,7 @@ where
 {
     use core::sync::atomic::compiler_fence;
     use core::sync::atomic::Ordering::SeqCst;
-    let mut min_time: u64 = std::u64::MAX;
+    let mut min_time: u64 = core::u64::MAX;
     for _ in 0..samples {
         let input = setup();
         compiler_fence(SeqCst);
@@ -38,6 +38,6 @@ pub fn re(value: &[u8]) -> LineReader<BufReader<&[u8]>> {
 }
 
 #[must_use]
-pub fn wr() -> WordWriter<Vec<u8>> {
+pub const fn wr() -> WordWriter<Vec<u8>> {
     WordWriter::new(Vec::new())
 }

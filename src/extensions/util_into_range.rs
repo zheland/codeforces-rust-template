@@ -11,11 +11,7 @@ mod util_into_range {
         T: Copy + Ord + PartialOrd,
     {
         fn into_range<R: RangeBounds<Self>>(self, range: R) -> Option<Self> {
-            if range.contains(&self) {
-                Some(self)
-            } else {
-                None
-            }
+            range.contains(&self).then_some(self)
         }
     }
 }

@@ -97,7 +97,7 @@ fn test_round_log10_ceil() {
 fn test_all_powers_of_10() {
     fn test_powers<T>(powers: &[T])
     where
-        T: std::fmt::Debug + CheckedMul + One + Ten + PartialEq<T>,
+        T: core::fmt::Debug + CheckedMul + One + Ten + PartialEq<T>,
     {
         let mut value: T = T::one();
         let mut j = 0;

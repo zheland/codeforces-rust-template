@@ -74,23 +74,20 @@ mod algorithm_dijkstra {
     }
 
     impl<T: Debug + Eq + Max> From<NonMax<T>> for Option<T> {
-        fn from(value: NonMax<T>) -> Option<T> {
+        fn from(value: NonMax<T>) -> Self {
             value.into_inner()
         }
     }
 
     impl<T: Debug + Eq + Max> From<T> for NonMax<T> {
-        fn from(value: T) -> NonMax<T> {
+        fn from(value: T) -> Self {
             Self::new(value)
         }
     }
 
     impl<T: Debug + Eq + Max> From<Option<T>> for NonMax<T> {
-        fn from(value: Option<T>) -> NonMax<T> {
-            match value {
-                Some(value) => Self::new(value),
-                None => Self::none(),
-            }
+        fn from(value: Option<T>) -> Self {
+            value.map_or_else(Self::none, |value| Self::new(value))
         }
     }
 
@@ -130,9 +127,7 @@ mod algorithm_dijkstra {
                 nodes.push(source_node_id);
                 dists[source_node_id] = Some(source_dist.clone());
                 prevs[source_node_id] = NonMax::from(parent_node_id);
-                let edges = if let Some(edges) = edges(source_node_id, source_dist.clone()) {
-                    edges
-                } else {
+                let Some(edges) = edges(source_node_id, source_dist.clone()) else {
                     break;
                 };
                 for edge in edges {
@@ -148,7 +143,7 @@ mod algorithm_dijkstra {
                     let _ = queue.insert((target_dist, target_node_id, Some(source_node_id)));
                 }
             }
-            Dijkstra {
+            Self {
                 nodes,
                 dists,
                 prevs,

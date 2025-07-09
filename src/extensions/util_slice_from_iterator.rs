@@ -7,6 +7,7 @@ mod slice_from_iterator {
 
     impl<T> SliceFromIterator for [T] {
         type Item = T;
+        #[track_caller]
         fn set_from_iter<I: Iterator<Item = Self::Item>>(&mut self, iter: I) -> usize {
             let mut len = 0;
             for value in iter {

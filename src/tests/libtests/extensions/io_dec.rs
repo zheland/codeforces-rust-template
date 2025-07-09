@@ -38,14 +38,14 @@ fn test_array_dec_be() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "source word length exceeds target word length")]
 fn test_array_dec_be_smaller() {
     let mut input = re(b" \n 0123 1234 \n \n 2345 ");
     let _ = input.re::<ArrayDecBe<3>>();
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "assertion failed: *value >= b'0' && *value <= b'9'")]
 fn test_array_dec_be_invalid_chars() {
     let mut input = re(b" \n ab ");
     let _ = input.re::<ArrayDecBe<4>>();
@@ -90,14 +90,14 @@ fn test_array_dec_le() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "source word length exceeds target word length")]
 fn test_array_dec_le_smaller() {
     let mut input = re(b" \n 0123 1234 \n \n 2345 ");
     let _ = input.re::<ArrayDecLe<3>>();
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "assertion failed: *value >= b'0' && *value <= b'9'")]
 fn test_array_dec_le_invalid_chars() {
     let mut input = re(b" \n ab ");
     let _ = input.re::<ArrayDecLe<4>>();

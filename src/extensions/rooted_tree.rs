@@ -1,6 +1,6 @@
 pub use rooted_tree::*;
 mod rooted_tree {
-    use std::cmp::Ordering;
+    use core::cmp::Ordering;
     use std::collections::BTreeSet;
 
     pub fn root_tree(

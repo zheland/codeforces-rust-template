@@ -1,40 +1,10 @@
-#![warn(
-    clippy::all,
-    clippy::pedantic,
-    meta_variable_misuse,
-    missing_abi,
-    non_ascii_idents,
-    pointer_structural_match,
-    rust_2018_idioms,
-    single_use_lifetimes,
-    trivial_casts,
-    trivial_numeric_casts,
-    unused_extern_crates,
-    unused_import_braces,
-    unused_lifetimes,
-    unused_qualifications,
-    unused_results,
-    variant_size_differences
-)]
-#![allow(
-    clippy::many_single_char_names,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::module_name_repetitions,
-    clippy::too_many_lines,
-    clippy::wildcard_imports,
-    dead_code,
-    non_snake_case,
-    unused_imports,
-    unused_macros
-)]
-
 #[cfg(test)]
 pub mod tests;
 
 #[cfg(test)]
 pub mod extensions;
 
+use core::array;
 use core::borrow::{Borrow, BorrowMut};
 use core::cell::RefCell;
 use core::cmp::Ordering::{Equal, Greater, Less};
@@ -45,6 +15,7 @@ use core::iter::{empty, once, repeat, successors};
 use core::marker::PhantomData;
 use core::mem::{replace, swap, take};
 use core::str::{from_utf8, FromStr};
+use core::time::Duration;
 use std::collections::btree_map::Entry as BTreeMapEntry;
 use std::collections::hash_map::Entry as HashMapEntry;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, LinkedList, VecDeque};
@@ -53,7 +24,6 @@ use std::io::{
     ErrorKind as IoErrorKind, Result as IoResult, Stderr, Stdin, Stdout, Write,
 };
 use std::sync::Arc;
-use std::time::Duration;
 
 #[cfg(test)]
 use crate::tests::{test_with_examples, test_with_interactor, ChannelReader, ChannelWriter};
@@ -93,8 +63,8 @@ const EXAMPLES: &str = r####"
 77
 "####;
 
-#[derive(Clone, Debug)]
-pub struct Preset {}
+#[derive(Copy, Clone, Debug)]
+pub struct Preset;
 
 #[allow(unused_variables, clippy::needless_pass_by_value)]
 pub fn interactor<I: ReaderExt + WriterExt>(io: &mut I, preset: &Preset) {
@@ -364,7 +334,7 @@ mod line_reader {
             }
         }
 
-        pub fn as_reader(&self) -> &R {
+        pub const fn as_reader(&self) -> &R {
             &self.reader
         }
 
@@ -401,11 +371,7 @@ mod line_reader {
 
         fn read_chars<const N: usize>(&mut self) -> Option<[u8; N]> {
             let len = self.line.as_bytes().len();
-            if len >= N {
-                Some(self.line.take_array())
-            } else {
-                None
-            }
+            (len >= N).then(|| self.line.take_array())
         }
     }
 
@@ -429,14 +395,14 @@ mod word_writer {
     }
 
     impl<W> WordWriter<W> {
-        pub fn new(writer: W) -> Self {
+        pub const fn new(writer: W) -> Self {
             Self {
                 writer,
                 is_seperator_needed: false,
             }
         }
 
-        pub fn as_writer(&self) -> &W {
+        pub const fn as_writer(&self) -> &W {
             &self.writer
         }
 
@@ -690,7 +656,7 @@ mod word_start {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
             reader.goto_word().unwrap();
-            WordStart
+            Self
         }
     }
 }
@@ -707,7 +673,7 @@ mod line_start {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
             reader.skip_line().unwrap();
-            LineStart
+            Self
         }
     }
 }
@@ -738,7 +704,7 @@ mod word {
         #[track_caller]
         fn read<R: Reader>(reader: &'a mut R) -> Self {
             let word = SliceWord::read(reader);
-            Word(word.0.to_vec())
+            Self(word.0.to_vec())
         }
     }
 
@@ -759,7 +725,7 @@ mod word {
                 .0
                 .try_into()
                 .expect("target word length is not equal to the source word length");
-            Word(word)
+            Self(word)
         }
     }
 
@@ -823,7 +789,7 @@ mod separated_tuple {
     }
 
     impl<Value, Pref, Sep, Suff> SeparatedTuple<Value, Pref, Sep, Suff> {
-        fn new(value: Value, prefix: Pref, separator: Sep, suffix: Suff) -> Self {
+        const fn new(value: Value, prefix: Pref, separator: Sep, suffix: Suff) -> Self {
             Self {
                 value,
                 prefix,
@@ -937,7 +903,7 @@ mod separated_iterator {
     }
 
     impl<Value, Pref, Sep, Suff> SeparatedIterator<Value, Pref, Sep, Suff> {
-        fn new(value: Value, prefix: Pref, separator: Sep, suffix: Suff) -> Self {
+        const fn new(value: Value, prefix: Pref, separator: Sep, suffix: Suff) -> Self {
             Self {
                 value,
                 prefix,
@@ -1102,18 +1068,6 @@ mod str_ext {
 
 use array_ext::*;
 mod array_ext {
-    pub fn array_from_fn<T, F, const N: usize>(mut cb: F) -> [T; N]
-    where
-        F: FnMut(usize) -> T,
-    {
-        let mut idx = 0;
-        [(); N].map(|_| {
-            let res = cb(idx);
-            idx += 1;
-            res
-        })
-    }
-
     pub trait ArrayExt {
         fn rev(self) -> Self;
     }
@@ -1249,8 +1203,8 @@ mod bool_ext {
 
 use vec_ext::*;
 mod vec_ext {
-    use std::cmp::Ordering;
-    use std::mem::replace;
+    use core::cmp::Ordering;
+    use core::mem::replace;
 
     pub trait VecExt<T> {
         fn wc(capacity: usize) -> Self;
@@ -1432,7 +1386,7 @@ mod signed {
 use wrap::*;
 mod wrap {
     use core::num::Wrapping;
-    pub fn wrap<T>(value: T) -> Wrapping<T> {
+    pub const fn wrap<T>(value: T) -> Wrapping<T> {
         Wrapping(value)
     }
 }
@@ -1457,7 +1411,7 @@ mod ceil {
         }
     }
 
-    pub fn ceil<T>(value: T) -> Ceil<T> {
+    pub const fn ceil<T>(value: T) -> Ceil<T> {
         Ceil(value)
     }
 }
@@ -1584,6 +1538,7 @@ mod mul_rem {
     macro_rules! def {
         ( $low:ty, $hi:ty $(, $rest:ty)* ) => {
             impl MulRem for $low {
+                #[allow(clippy::modulo_arithmetic)]
                 fn mul_rem(self, mul: Self, rem: Self) -> Self {
                     ((self as $hi) * (mul as $hi) % (rem as $hi)) as $low
                 }
@@ -1763,11 +1718,11 @@ mod primes {
             }
         }
 
-        pub fn iter(&self) -> PrimesIter<'_> {
+        pub const fn iter(&self) -> PrimesIter<'_> {
             PrimesIter::new(self, 0)
         }
 
-        pub fn iter_from(&self, from: usize) -> PrimesIter<'_> {
+        pub const fn iter_from(&self, from: usize) -> PrimesIter<'_> {
             PrimesIter::new(self, from)
         }
 
@@ -1800,7 +1755,7 @@ mod primes {
     pub struct PrimesIter<'a>(&'a Primes, usize);
 
     impl<'a> PrimesIter<'a> {
-        pub fn new(sieve: &'a Primes, from: usize) -> Self {
+        pub const fn new(sieve: &'a Primes, from: usize) -> Self {
             Self(sieve, if from < 3 { 0 } else { from / 2 })
         }
     }
@@ -1810,12 +1765,10 @@ mod primes {
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.1 == 0 {
-                if self.0.len > 2 {
+                (self.0.len > 2).then(|| {
                     self.1 = 1;
-                    Some(2)
-                } else {
-                    None
-                }
+                    2
+                })
             } else {
                 while self.1 < self.0.sieve.len() {
                     if self.0.sieve[self.1] == 0 {
@@ -1836,7 +1789,7 @@ mod primes {
     pub struct PrimesFactorizeIter<'a>(&'a Primes, usize);
 
     impl<'a> PrimesFactorizeIter<'a> {
-        pub fn new(sieve: &'a Primes, value: usize) -> Self {
+        pub const fn new(sieve: &'a Primes, value: usize) -> Self {
             Self(sieve, value)
         }
     }
@@ -1880,7 +1833,7 @@ mod dedup_count {
     }
 
     impl<T, I> DedupCountIter<T, I> {
-        pub fn new(iter: I) -> Self {
+        pub const fn new(iter: I) -> Self {
             Self { iter, prev: None }
         }
     }
@@ -2059,8 +2012,8 @@ pub mod math_ext {
 
 pub use hash_ext::*;
 mod hash_ext {
+    use core::hash::{Hash, Hasher};
     use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
 
     pub fn hash<T>(value: &T) -> u64
     where

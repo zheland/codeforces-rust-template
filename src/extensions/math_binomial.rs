@@ -1,9 +1,9 @@
 pub use math_binomial::*;
 mod math_binomial {
+    use core::cmp::min;
     use core::cmp::PartialOrd;
+    use core::iter::successors;
     use core::ops::{Add, AddAssign, Div, Mul, Sub};
-    use std::cmp::min;
-    use std::iter::successors;
 
     use crate::{Five, MulDiv, One, Ten, Three, Two, Zero};
 
@@ -30,15 +30,15 @@ mod math_binomial {
     }
 
     impl<T> Binomial<T> {
-        pub fn get(&self) -> &T {
+        pub const fn get(&self) -> &T {
             &self.value
         }
 
-        pub fn n(&self) -> &T {
+        pub const fn n(&self) -> &T {
             &self.n
         }
 
-        pub fn k(&self) -> &T {
+        pub const fn k(&self) -> &T {
             &self.k
         }
     }
@@ -131,15 +131,15 @@ mod math_binomial {
     where
         T: Add<Output = T> + Copy + MulDiv + One + Sub<Output = T> + Zero,
     {
-        pub fn line(n: T) -> impl Iterator<Item = Binomial<T>> {
+        pub fn line(n: T) -> impl Iterator<Item = Self> {
             successors(Some(Self::with_n(n)), |coeff| Some(coeff.inc_k()))
         }
 
-        pub fn column(nk: T) -> impl Iterator<Item = Binomial<T>> {
+        pub fn column(nk: T) -> impl Iterator<Item = Self> {
             successors(Some(Self::with_nk(nk)), |coeff| Some(coeff.inc_n()))
         }
 
-        pub fn diag(n: T) -> impl Iterator<Item = Binomial<T>> {
+        pub fn diag(n: T) -> impl Iterator<Item = Self> {
             successors(Some(Self::with_n(n)), |coeff| Some(coeff.inc_nk()))
         }
     }
@@ -149,7 +149,7 @@ mod math_binomial {
         T: Add<Output = T> + Copy + MulDiv + One + Sub<Output = T>,
     {
         #[must_use]
-        pub fn dec_n(&self) -> Binomial<T> {
+        pub fn dec_n(&self) -> Self {
             Self {
                 value: self.value.mul_div(self.n - self.k, self.n),
                 n: self.n - T::one(),
@@ -158,7 +158,7 @@ mod math_binomial {
         }
 
         #[must_use]
-        pub fn inc_n(&self) -> Binomial<T> {
+        pub fn inc_n(&self) -> Self {
             Self {
                 value: self
                     .value
@@ -169,7 +169,7 @@ mod math_binomial {
         }
 
         #[must_use]
-        pub fn dec_nk(&self) -> Binomial<T> {
+        pub fn dec_nk(&self) -> Self {
             Self {
                 value: self.value.mul_div(self.k, self.n),
                 n: self.n - T::one(),
@@ -178,7 +178,7 @@ mod math_binomial {
         }
 
         #[must_use]
-        pub fn inc_nk(&self) -> Binomial<T> {
+        pub fn inc_nk(&self) -> Self {
             Self {
                 value: self.value.mul_div(self.n + T::one(), self.k + T::one()),
                 n: self.n + T::one(),
@@ -187,7 +187,7 @@ mod math_binomial {
         }
 
         #[must_use]
-        pub fn dec_k(&self) -> Binomial<T> {
+        pub fn dec_k(&self) -> Self {
             Self {
                 value: self.value.mul_div(self.k, self.n + T::one() - self.k),
                 n: self.n,
@@ -196,7 +196,7 @@ mod math_binomial {
         }
 
         #[must_use]
-        pub fn inc_k(&self) -> Binomial<T> {
+        pub fn inc_k(&self) -> Self {
             Self {
                 value: self.value.mul_div(self.n - self.k, self.k + T::one()),
                 n: self.n,

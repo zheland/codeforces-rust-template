@@ -14,7 +14,7 @@ fn test_slice_from_iterator() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "assertion failed: len < self.len()")]
 fn test_slice_from_iterator_panic() {
     let mut array = [1, 2, 3, 4];
     assert_eq!(array.set_from_iter(vec![9, 10, 11, 12, 13].into_iter()), 4);

@@ -1,5 +1,5 @@
+use core::iter::once;
 use std::collections::BTreeSet;
-use std::iter::once;
 
 use crate::extensions::rooted_tree::{root_tree, rooted_tree_path};
 

@@ -32,14 +32,14 @@ fn test_array_word() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "target word length is not equal to the source word length")]
 fn test_array_word_smaller() {
     let mut input = re(b" \n ab bc \n \n cd ");
     let _ = input.re::<ArrayWord<3>>();
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "target word length is not equal to the source word length")]
 fn test_array_word_bigger() {
     let mut input = re(b" \n ab bc \n \n cd ");
     let _ = input.re::<ArrayWord<1>>();

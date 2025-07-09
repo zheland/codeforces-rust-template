@@ -35,7 +35,7 @@ mod util_each_permutation {
     impl<'a, T> EachPermutationIter<'a, T> {
         pub fn new(data: &'a [T], k: usize) -> Self {
             Self {
-                data: if k <= data.len() { Some(data) } else { None },
+                data: (k <= data.len()).then_some(data),
                 mask: vec![false; data.len()],
                 idxs: Vec::new(),
                 perm: Rc::new(RefCell::new(Vec::new())),

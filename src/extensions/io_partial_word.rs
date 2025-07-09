@@ -41,7 +41,7 @@ mod partial_word {
             );
             let mut word = [0; N];
             word[0..slice.len()].copy_from_slice(slice.0);
-            PartialWord(word)
+            Self(word)
         }
     }
 

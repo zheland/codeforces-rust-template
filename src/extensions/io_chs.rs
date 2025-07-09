@@ -18,7 +18,7 @@ mod io_chs {
             let chs = reader
                 .read_chars()
                 .expect("target word length exceeds source line length");
-            Chs(chs)
+            Self(chs)
         }
     }
 

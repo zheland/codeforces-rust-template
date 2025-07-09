@@ -13,7 +13,7 @@ fn test_partial_array_word() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "source word length exceeds target word length")]
 fn test_partial_array_word_bigger() {
     let mut input = re(b" \n ab bc cd ");
     let _ = input.re::<PartialWord<1>>();

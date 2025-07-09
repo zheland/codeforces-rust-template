@@ -1,13 +1,15 @@
+use core::mem::take;
+use core::time::Duration;
 use std::io::{Read, Result as IoResult, Write};
-use std::mem::take;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
-use std::time::Duration;
 
+#[derive(Debug)]
 pub struct ChannelWriter {
     send: Sender<Box<[u8]>>,
     buffer: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub struct ChannelReader {
     recv: Receiver<Box<[u8]>>,
     buffer: Box<[u8]>,
@@ -16,6 +18,7 @@ pub struct ChannelReader {
 }
 
 impl ChannelWriter {
+    #[must_use]
     pub fn new(send: Sender<Box<[u8]>>) -> Self {
         Self {
             send,
@@ -25,6 +28,7 @@ impl ChannelWriter {
 }
 
 impl ChannelReader {
+    #[must_use]
     pub fn new(recv: Receiver<Box<[u8]>>, timeout: Duration) -> Self {
         Self {
             recv,

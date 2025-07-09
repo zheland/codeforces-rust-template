@@ -36,7 +36,7 @@ mod util_each_combination {
     }
 
     impl<'a, T> EachCombinationComb<'a, T> {
-        pub fn new(data: &'a [T]) -> Self {
+        pub const fn new(data: &'a [T]) -> Self {
             Self {
                 data,
                 mask: vec![],
@@ -73,12 +73,7 @@ mod util_each_combination {
                     let mut comb = comb_rc.borrow_mut();
                     comb.j = 0;
                     if comb.data.is_empty() {
-                        return if self.min == 0 {
-                            let iter = EachCombinationIterIter::new(&comb_rc);
-                            Some(iter)
-                        } else {
-                            None
-                        };
+                        return (self.min == 0).then(|| EachCombinationIterIter::new(&comb_rc));
                     }
                     loop {
                         if comb.mask.is_empty() {

@@ -17,13 +17,11 @@ mod solve_ax_cong_b_mod_p {
             + Zero,
     {
         let d = gcd(a.clone(), p.clone());
-        if b.clone() % d.clone() == T::zero() {
+        (b.clone() % d.clone() == T::zero()).then(|| {
             let a1 = a / d.clone();
             let b1 = b / d.clone();
             let p1 = p / d;
-            Some(a1.modular_inv_prime(p1) * b1)
-        } else {
-            None
-        }
+            a1.modular_inv_prime(p1) * b1
+        })
     }
 }

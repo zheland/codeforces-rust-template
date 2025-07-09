@@ -1,6 +1,6 @@
 pub use rooted_tree_with_binary_lifting::*;
 mod rooted_tree_with_binary_lifting {
-    use std::cmp::Ordering;
+    use core::cmp::Ordering;
     use std::collections::BTreeSet;
 
     use crate::extensions::math_log2::Log2;

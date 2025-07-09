@@ -1,6 +1,6 @@
 pub use math_permutations::*;
 mod math_permutations {
-    use std::ops::Div;
+    use core::ops::Div;
 
     use crate::Factorial;
 

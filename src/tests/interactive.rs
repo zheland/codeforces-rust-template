@@ -1,7 +1,7 @@
 use std::io::{BufReader, BufWriter};
 use std::sync::mpsc::channel;
 use std::thread;
-use std::time::Duration;
+use core::time::Duration;
 
 use crate::tests::{ChannelReader, ChannelWriter};
 use crate::Io;

@@ -144,14 +144,18 @@ fn test_dimview3_mut() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(
+    expected = "invalid slice length: the len is 12 but the product of dimensions is 16"
+)]
 fn test_dimview2_size_check() {
     let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     let _arr = NdArray::from(&arr[..], [4, 4]);
 }
 
 #[test]
-#[should_panic]
+#[should_panic(
+    expected = "failed: invalid slice length: the len is 24 but the product of dimensions is 36"
+)]
 fn test_dimview3_size_check() {
     let arr = [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
@@ -160,7 +164,7 @@ fn test_dimview3_size_check() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "range end index 30 out of range for slice of length 24")]
 fn test_dimview3_index1_check() {
     let arr = [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
@@ -170,7 +174,7 @@ fn test_dimview3_index1_check() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "range end index 8 out of range for slice of length 6")]
 fn test_dimview3_index2_check() {
     let arr = [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
@@ -180,7 +184,7 @@ fn test_dimview3_index2_check() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "index out of bounds: the len is [2] but the index is [2]")]
 fn test_dimview3_index3_check() {
     let arr = [
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,

@@ -1,10 +1,10 @@
 pub use modular::*;
 mod modular {
     use core::cmp::{Ord, Ordering};
+    use core::ops::DivAssign;
     use core::ops::{
         Add, AddAssign, BitAnd, Div, Mul, MulAssign, Neg, Rem, ShrAssign, Sub, SubAssign,
     };
-    use std::ops::DivAssign;
 
     use crate::{
         gcd, Abs, Five, ModularMul, ModularPow, MulDiv, One, RemEuclid, Ten, Three, Two, Unsigned,
@@ -43,7 +43,7 @@ mod modular {
     pub struct ValueWithEulersPhi<T>(T, T);
 
     impl<T> ValueWithEulersPhi<T> {
-        pub fn new(value: T, eulers_phi: T) -> Self {
+        pub const fn new(value: T, eulers_phi: T) -> Self {
             Self(value, eulers_phi)
         }
     }
@@ -114,7 +114,7 @@ mod modular {
         }
     }
 
-    #[allow(clippy::derive_hash_xor_eq)]
+    #[allow(clippy::derived_hash_with_manual_eq)]
     #[derive(Clone, Copy, Debug, Default, Hash)]
     pub struct Modular<T, M>(pub T, pub M);
 
@@ -128,7 +128,7 @@ mod modular {
             Self(value, modulus)
         }
 
-        pub fn from_raw(value: T, modulus: M) -> Self
+        pub const fn from_raw(value: T, modulus: M) -> Self
         where
             T: Unsigned,
             M: Value<Output = T>,
@@ -438,6 +438,7 @@ mod modular {
     }
 
     impl<T: Ord, M> PartialOrd for Modular<T, M> {
+        #[allow(clippy::non_canonical_partial_ord_impl)]
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
             self.0.partial_cmp(&other.0)
         }
