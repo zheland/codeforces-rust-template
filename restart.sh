@@ -8,6 +8,6 @@ for package in "${PACKAGES[@]}"; do
     cp src/template.rs src/$package.rs
 done
 
-cargo build --bin template --features libtests,interactive
-cargo test --bin template --features libtests,interactive
+cargo build --bin template --features lib-tests
+cargo test --bin template --features lib-tests
 cargo test

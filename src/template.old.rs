@@ -11,7 +11,7 @@ use core::cmp::Ordering::{Equal, Greater, Less};
 use core::cmp::{max, min};
 use core::convert::Infallible;
 use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
-use core::iter::{empty, once, repeat, successors};
+use core::iter::{empty, from_fn as iter_from_fn, once, once_with, repeat, successors};
 use core::marker::PhantomData;
 use core::mem::{replace, swap, take};
 use core::str::{from_utf8, FromStr};

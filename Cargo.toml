@@ -1,95 +1,31 @@
 [package]
-name = "template"
+name = "codeforces-template"
 version = "0.1.0"
 edition = "2021"
+
 
 [[bin]]
 name = "template"
 path = "src/template.rs"
 
 [[bin]]
-name = "a1"
-path = "src/a1.rs"
+name = "tester"
+path = "src/tester.rs"
 
-[[bin]]
-name = "a2"
-path = "src/a2.rs"
-
-[[bin]]
-name = "b1"
-path = "src/b1.rs"
-
-[[bin]]
-name = "b2"
-path = "src/b2.rs"
-
-[[bin]]
-name = "c1"
-path = "src/c1.rs"
-
-[[bin]]
-name = "c2"
-path = "src/c2.rs"
-
-[[bin]]
-name = "d1"
-path = "src/d1.rs"
-
-[[bin]]
-name = "d2"
-path = "src/d2.rs"
-
-[[bin]]
-name = "e1"
-path = "src/e1.rs"
-
-[[bin]]
-name = "e2"
-path = "src/e2.rs"
-
-[[bin]]
-name = "f1"
-path = "src/f1.rs"
-
-[[bin]]
-name = "f2"
-path = "src/f2.rs"
-
-[[bin]]
-name = "g1"
-path = "src/g1.rs"
-
-[[bin]]
-name = "g2"
-path = "src/g2.rs"
-
-[[bin]]
-name = "h1"
-path = "src/h1.rs"
-
-[[bin]]
-name = "h2"
-path = "src/h2.rs"
-
-[[bin]]
-name = "z1"
-path = "src/z1.rs"
-
-[[bin]]
-name = "z2"
-path = "src/z2.rs"
 
 [features]
-interactive = []
-libtests = []
+lib-tests = []
+
 
 [dev-dependencies]
 rand = "0.8.3"
 rand_chacha = "0.3.1"
 
+
 [profile.test]
-opt-level = 2 # https://codeforces.com/blog/entry/121114
+opt-level = 3 # https://codeforces.com/blog/entry/121114
 overflow-checks = true
+
 
 [profile.release]
 overflow-checks = true
@@ -120,9 +56,10 @@ variant_size_differences = "warn"
 
 dead_code = "allow"
 missing_docs = "allow"
-non_snake_case = "allow"
-unused_imports = "allow"
-unused_macros = "allow"
+# non_snake_case = "allow"
+# unused_imports = "allow"
+# unused_labels = "allow"
+# unused_macros = "allow"
 
 
 [lints.clippy]
@@ -170,18 +107,18 @@ useless_let_if_seq = "warn"
 verbose_file_reads = "warn"
 wildcard_enum_match_arm = "warn"
 
-alloc_instead_of_core = "allow"
-allow_attributes = "allow"
-allow_attributes_without_reason = "allow"
-arithmetic_side_effects = "allow"
-as_conversions = "allow"
-many_single_char_names = "allow"
-missing_errors_doc = "allow"
-missing_panics_doc = "allow"
-module_name_repetitions = "allow"
-needless_raw_string_hashes = "allow"
-panic = "allow"
-too_many_lines = "allow"
-undocumented_unsafe_blocks = "allow"
-unwrap_used = "allow"
-wildcard_imports = "allow"
+# alloc_instead_of_core = "allow"
+# allow_attributes = "allow"
+# allow_attributes_without_reason = "allow"
+# arithmetic_side_effects = "allow"
+# as_conversions = "allow"
+# many_single_char_names = "allow"
+# missing_errors_doc = "allow"
+# missing_panics_doc = "allow"
+# module_name_repetitions = "allow"
+# needless_raw_string_hashes = "allow"
+# panic = "allow"
+# too_many_lines = "allow"
+# undocumented_unsafe_blocks = "allow"
+# unwrap_used = "allow"
+# wildcard_imports = "allow"
