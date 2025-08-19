@@ -1,30 +1,61 @@
-# Template for Codeforces contests for Rust language
+# My Template using Rust Language for Codeforces Contests
 
 ## About
 
-This is a template I made for the Codeforces contests.
-It contains many auxiliary functions for I/O, math and algorithms.
+This is a template I made for participating in CodeForces contests.
+
+It contains plenty of I/O trait, and auxiliary traits and functions including:
+- Automated solution testing against provided examples and tests.
+- Automated interactive testing support.
+- Helper per-word IO reader and writer.
+- `Readable` trait implemented for different parsable values and collections.
+- `Writable` trait implemented for different writable values and collections.
+- Often-used auxiliary methods like `dedup_count`, `gcd`, `lcm`.
+- Prime siege with factorization methods.
+- Modular arithmetic helper methods.
+- And other auxiliary functions, traits and methods in src/extensions directory.
 
 ## Usage
 
 - The `template.rs` file is a template for problem solution files.
 - Files `a1.rs`, `a2.rs`, ..., `h1.rs,` `h2.rs`
   are the files in which it is supposed to solve contest problems.
-- Files `z1.rs`, `z2.rs` are the additional files that, for example,
-  can be used to solve problems from the archive or for experiments.
-- The extensions folder contains a large number of additional modules,
-  that are not included in the `template.rs` due to the size limit of 64kilobytes.
-- Use `restart.sh` to reset all binary source files to `template.rs`
+- The extensions folder contains some additional modules, that are not included
+  in the `template.rs`.
+- Use `restart.sh` to reset all problem source files to `template.rs`
   and to run all the libraries tests.
-- Use `watch.sh` to start watch script that run tests for modified source files.
+- Use `watch.sh` to start watch script that run tests for source files when
+  modified.
+- Copy examples using "firefox-copy-codeforces-tests" extension to `EXAMPLES`.
+- Solve problem by modifying `solver` function.
+- Whenever you save the file `watch.sh` will automatically check that the
+  solution answers matches ones specified in `EXAMPLES` string.
 
-## Tips
-- Use `re!(VecWord).0` to read the word, e.g. a sequence of ASCII characters
-  surrounded by whitespace characters;
-- Use `io.li(a.wo())` to write space-separated values of the `a` variable,
-  if the `a` variable is a tuple, iterator or iterable collection.
-- Check out `src/tests/libtests` directory to explore the use of different types,
-  traits and functions.
+## I/O examples
+
+```rust
+let x: usize = re.re();                   // Read `usize` value.
+let (a, b, c): (u64, u64, u64) = re.re(); // Read three whitespace-separated `u64` values.
+let arr: [u8; 16] = re.re();              // Read sixteen u8 values.
+let str1: &str = re.re();                 // Read whitespace-surrounded string.
+let str2: &str = re.rec(4);              // Read 4-bytes as string.
+
+// Read tuples vector with length `x`.
+let vec1: Vec<(u32, u32)> = repeat_with(|| re.re()).take(&x).collect();
+let vec2: Vec<(u32, u32)> = re.rei(x).collect();
+let vec3: Vec<(u32, u32)> = re.rec(x);
+
+// Read nested vector with dimensions `[x * 2, x + 3]`.
+let vec4: Vec<Vec<u32>> = re.rec((x * 2, x + 3));
+
+wr.li("Hello");                 // Write line "Hello".
+wr.wo(a).wo(b);                 // Start new line "{a} {b}".
+wr.wo(b).wo(c).ln();            // Finish line with " {b} {c}".
+wr.wo((1..=9).wo()).ln();       // Write line "1 2 3 4 5 6 7 8 9"
+wr.wo((1..=9).jo()).ln();       // Write line "123456789"
+wr.wo((1, "ha", 2).wo()).ln();  // Write line "1 ha 2"
+wr.fl();                        // Flushes buffer, important for interactive problems.
+```
 
 ## License
 
