@@ -39,7 +39,7 @@ const EXAMPLES: &str = r####"
 ----
 15
 77
-"####;
+"####; // "; // (fix codeforces code highlighting)
 
 #[cfg(feature = "dev-mode")]
 fn tests(wr: &mut Output) {
@@ -50,8 +50,8 @@ fn tests(wr: &mut Output) {
     wr.li("----"); // IO separator.
     // let mut rng = ChaCha8Rng::seed_from_u64(123);
     // for _ in 0..4 {
-    //     let n = rng.gen_range(1..=100);
-    //     let m = rng.gen_range(1..=1000);
+    //     let n = rng.random_range(1..=100);
+    //     let m = rng.random_range(1..=1000);
     //     wr.li("====");
     //     wr.li(1);
     //     wr.li(n);
