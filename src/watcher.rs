@@ -92,6 +92,9 @@ async fn watcher() -> Result<Infallible, EyreError> {
             if let Some(prev_modified) = files_modified_times.get(&path)
                 && (*prev_modified == modified || prev_modified.elapsed()? < DEBOUNCE_DELAY)
             {
+                if prev_modified.elapsed()? < DEBOUNCE_DELAY {
+                    println!("DEBOUNCED");
+                }
                 continue;
             }
 
@@ -412,12 +415,16 @@ where
     let expected = expected.trim();
 
     let stderr_note = if stderr.is_empty() { " (empty)" } else { "\n" };
-    // let stdout_note = if stderr.is_empty() { " (empty)" } else { "\n" };
 
     let status = solver
-        .try_wait()
-        .map_err(|IoError { .. }| eyre!("{ERROR_STYLE}Solver stalled{DEFAULT_STYLE}"))?
-        .ok_or_else(|| eyre!("{ERROR_STYLE}Exit status not available{DEFAULT_STYLE}"))?;
+        .wait()
+        .await
+        .map_err(|IoError { .. }| eyre!("{ERROR_STYLE}Solver stalled{DEFAULT_STYLE}"))?;
+
+    // let status = solver
+    //     .try_wait()
+    //     .map_err(|IoError { .. }| eyre!("{ERROR_STYLE}Solver stalled{DEFAULT_STYLE}"))?
+    //     .ok_or_else(|| eyre!("{ERROR_STYLE}Exit status not available{DEFAULT_STYLE}"))?;
 
     let stdin = str_from_valid_part(&stdin);
 
@@ -505,7 +512,7 @@ fn write_diff(target: &mut String, given: &str, expected: &str) -> Result<(), Ey
                     // "\x1b[0;31m  - {}\x1b[0m (line {})", given.0 + 1
                     writeln!(
                         target,
-                        "{REMOVED_STYLE}{}{DEFAULT_STYLE} {NOTE_STYLE}(bad){DEFAULT_STYLE}",
+                        "{REMOVED_STYLE}{}{DEFAULT_STYLE} {NOTE_STYLE}(wrong){DEFAULT_STYLE}",
                         given.1,
                     )?;
                     // "\x1b[0;32m  + {}\x1b[0m (line {})", expected.0 + 1
@@ -513,7 +520,11 @@ fn write_diff(target: &mut String, given: &str, expected: &str) -> Result<(), Ey
                 }
             }
             (Some(given), None) => {
-                writeln!(target, "{REMOVED_STYLE}{}{DEFAULT_STYLE} (bad)", given.1,)?;
+                writeln!(
+                    target,
+                    "{REMOVED_STYLE}{}{DEFAULT_STYLE} {NOTE_STYLE}(wrong){DEFAULT_STYLE}",
+                    given.1,
+                )?;
             }
             (None, Some(expected)) => {
                 writeln!(target, "{ADDED_STYLE}{}{DEFAULT_STYLE}", expected.1)?;

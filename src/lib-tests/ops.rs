@@ -1,6 +1,6 @@
 use core::iter::FusedIterator;
 
-use crate::{div_rem_u128, gcd, lcm, DedupCount, IntoVec, Primes, SliceExt};
+use crate::{DedupCount, IntoVec, Primes, SliceExt, div_rem_u128, gcd, lcm};
 
 #[test]
 fn test_gcd() {

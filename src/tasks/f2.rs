@@ -2,18 +2,14 @@
 #[path = "../lib-tests/mod.rs"]
 mod lib_tests;
 
-// use crate::{arr, d, dl, for_each};
 use core::format_args as fa;
 
 fn solver(re: &mut Input, wr: &mut Output, er: &mut Error) {
     let _ = er;
     let t: usize = re.re();
-    dl!(t);
     'main: for _ in 0..t {
         let n: usize = re.re();
-        dl!(n);
         let a: Vec<i64> = re.rec(n);
-        dl!(a);
         let ans = a.iter().sum::<i64>();
         wr.li(ans);
     }
