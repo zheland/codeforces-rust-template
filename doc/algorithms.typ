@@ -1,0 +1,2 @@
+- Difference array - mass operation on subsequences
+- Fenwick tree - update values and calculate prefix sums
